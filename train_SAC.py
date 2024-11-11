@@ -22,7 +22,7 @@ import my_utils
 import hydra
 import gymnasium as gym
 
-import env
+import envs
 from logger import Logger
 from replay_buffer import ReplayBuffer
 from IsaacLabSingleEnvWrapper import SimpleEnvWrapper

@@ -1,0 +1,17 @@
+import gymnasium as gym
+
+from .walker2d_env import Walker2dEnv, Walker2dEnvCfg
+
+
+def walker2d_env_create(seed=None, device="cuda:0", render_mode=None, **kwargs):
+    cfg = Walker2dEnvCfg()
+    cfg.seed = seed
+    cfg.sim.device = device
+    return Walker2dEnv(cfg=cfg, render_mode=render_mode, **kwargs)
+
+
+gym.register(
+    id="walker2d",
+    entry_point=walker2d_env_create,
+    disable_env_checker=True,
+)
