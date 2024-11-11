@@ -1,0 +1,38 @@
+defaults:
+  - _self_
+  - sac
+
+#env
+env: walker2d
+
+# Basic setup
+experiment: sac
+device: cuda
+seed: 2
+
+# training
+num_train_steps: 1e6
+replay_buffer_capacity: ${num_train_steps}
+num_seed_steps: 5000
+eval_frequency: 10000
+num_eval_episodes: 10
+
+# unsupervise
+num_unsup_steps: 0
+topK: 5
+reset_update: 1
+
+# logger
+log_frequency: 10000
+log_save_tb: true
+
+# video recorder
+save_video: false
+save_model: true
+
+# hydra configuration
+hydra:
+  job:
+    name: ${env}
+  run:
+    dir: ./exp/${env}/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_B${agent.batch_size}_tau${agent.critic_tau}/${experiment}_unsup${num_unsup_steps}_topk${topK}_${experiment}_lr${agent.actor_lr}_temp${agent.init_temperature}_seed${seed}

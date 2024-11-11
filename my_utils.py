@@ -1,0 +1,126 @@
+import numpy as np
+import torch
+import torch.nn.functional as F
+import os
+import random
+import math
+import gymnasium as gym
+
+
+from torch import nn
+
+
+def soft_update_params(net, target_net, tau):
+    for param, target_param in zip(net.parameters(), target_net.parameters()):
+        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+
+
+def set_seed_everywhere(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+
+def weight_init(m):
+    """Custom weight init for Conv2D and Linear layers."""
+    if isinstance(m, nn.Linear):
+        nn.init.orthogonal_(m.weight.data)
+        if hasattr(m.bias, "data"):
+            m.bias.data.fill_(0.0)
+
+
+class TorchRunningMeanStd:
+    def __init__(self, epsilon=1e-4, shape=(), device=None):
+        self.mean = torch.zeros(shape, device=device)
+        self.var = torch.ones(shape, device=device)
+        self.count = epsilon
+
+    def update(self, x):
+        with torch.no_grad():
+            batch_mean = torch.mean(x, axis=0)
+            batch_var = torch.var(x, axis=0)
+            batch_count = x.shape[0]
+            self.update_from_moments(batch_mean, batch_var, batch_count)
+
+    def update_from_moments(self, batch_mean, batch_var, batch_count):
+        self.mean, self.var, self.count = update_mean_var_count_from_moments(
+            self.mean, self.var, self.count, batch_mean, batch_var, batch_count
+        )
+
+    @property
+    def std(self):
+        return torch.sqrt(self.var)
+
+
+def update_mean_var_count_from_moments(
+    mean, var, count, batch_mean, batch_var, batch_count
+):
+    delta = batch_mean - mean
+    tot_count = count + batch_count
+
+    new_mean = mean + delta + batch_count / tot_count
+    m_a = var * count
+    m_b = batch_var * batch_count
+    M2 = m_a + m_b + torch.pow(delta, 2) * count * batch_count / tot_count
+    new_var = M2 / tot_count
+    new_count = tot_count
+
+    return new_mean, new_var, new_count
+
+
+def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
+    mods = []
+    if hidden_depth == 0:
+        mods.append(nn.Linear(input_dim, output_dim))
+        nn.init.xavier_uniform_(mods[-1].weight)
+    else:
+        mods.append(nn.Linear(input_dim, hidden_dim))
+        nn.init.xavier_uniform_(mods[-1].weight)
+        mods.append(nn.ReLU(inplace=True))
+        for i in range(hidden_depth - 1):
+            mods.append(nn.Linear(hidden_dim, hidden_dim))
+            nn.init.xavier_uniform_(mods[-1].weight)
+            mods.append(nn.ReLU(inplace=True))
+        mods.append(nn.Linear(hidden_dim, output_dim))
+        nn.init.xavier_uniform_(mods[-1].weight)
+    if output_mod is not None:
+        mods.append(output_mod)
+    trunk = nn.Sequential(*mods)
+    return trunk
+
+
+class eval_mode(object):
+    def __init__(self, *models):
+        self.models = models
+
+    def __enter__(self):
+        self.prev_states = []
+        for model in self.models:
+            self.prev_states.append(model.training)
+            model.train(False)
+
+    def __exit__(self, *args):
+        for model, state in zip(self.models, self.prev_states):
+            model.train(state)
+        return False
+
+
+class train_mode(object):
+    def __init__(self, *models):
+        self.models = models
+
+    def __enter__(self):
+        self.prev_states = []
+        for model in self.models:
+            self.prev_states.append(model.training)
+            model.train(True)
+
+    def __exit__(self, *args):
+        for model, state in zip(self.models, self.prev_states):
+            model.train(state)
+        return False
+
+
+# all the above are from B-PREF
