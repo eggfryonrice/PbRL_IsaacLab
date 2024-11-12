@@ -20,14 +20,16 @@ num_eval_episodes: 10
 # unsupervise
 num_unsup_steps: 0
 topK: 5
-reset_update: 1
+reset_update: 100
 
 # logger
 log_frequency: 10000
 log_save_tb: true
 
 # video recorder
-save_video: false
+video_interval: 10000
+video_length: 1000
+
 save_model: true
 
 # hydra configuration
