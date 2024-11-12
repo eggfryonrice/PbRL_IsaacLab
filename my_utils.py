@@ -71,20 +71,13 @@ def update_mean_var_count_from_moments(
 
 
 def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
-    mods = []
     if hidden_depth == 0:
-        mods.append(nn.Linear(input_dim, output_dim))
-        nn.init.xavier_uniform_(mods[-1].weight)
+        mods = [nn.Linear(input_dim, output_dim)]
     else:
-        mods.append(nn.Linear(input_dim, hidden_dim))
-        nn.init.xavier_uniform_(mods[-1].weight)
-        mods.append(nn.ReLU(inplace=True))
+        mods = [nn.Linear(input_dim, hidden_dim), nn.ReLU(inplace=True)]
         for i in range(hidden_depth - 1):
-            mods.append(nn.Linear(hidden_dim, hidden_dim))
-            nn.init.xavier_uniform_(mods[-1].weight)
-            mods.append(nn.ReLU(inplace=True))
+            mods += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU(inplace=True)]
         mods.append(nn.Linear(hidden_dim, output_dim))
-        nn.init.xavier_uniform_(mods[-1].weight)
     if output_mod is not None:
         mods.append(output_mod)
     trunk = nn.Sequential(*mods)
