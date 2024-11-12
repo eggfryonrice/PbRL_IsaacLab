@@ -3,18 +3,18 @@ import sys
 from omni.isaac.lab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="isaac sim app related parser")
+parser.add_argument(
+    "--video", action="store_true", default=False, help="Record videos during training."
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
+if args_cli.video:
+    args_cli.enable_cameras = True
 sys.argv = [sys.argv[0]] + hydra_args
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import copy
-import math
 import os
 import time
 import pickle as pkl
@@ -46,8 +46,23 @@ class Workspace(object):
         self.log_success = False
         self.step = 0
 
-        self.env = gym.make(cfg.env, seed=cfg.seed, device=cfg.device)
-        self.env = SimpleEnvWrapper(self.env)
+        env = gym.make(
+            cfg.env,
+            seed=cfg.seed,
+            device=cfg.device,
+            render_mode="rgb_array" if args_cli.video else None,
+        )
+        if args_cli.video:
+            video_kwargs = {
+                "video_folder": os.path.join(self.work_dir, "videos", "train"),
+                "step_trigger": lambda step: step % self.cfg.video_interval == 0,
+                "video_length": self.cfg.video_length,
+                "disable_logger": True,
+            }
+            print("[INFO]: Recording videos during training.")
+            env = gym.wrappers.RecordVideo(env, **video_kwargs)
+        self.env = SimpleEnvWrapper(env)
+
         cfg.agent.obs_dim = self.env.observation_space.shape[0]
         cfg.agent.action_dim = self.env.action_space.shape[0]
         cfg.agent.action_range = [
@@ -71,7 +86,7 @@ class Workspace(object):
         if self.log_success:
             success_rate = 0
 
-        for episode in range(self.cfg.num_eval_episodes):
+        for _ in range(self.cfg.num_eval_episodes):
             obs = self.env.reset()
             self.agent.reset()
             done = False
