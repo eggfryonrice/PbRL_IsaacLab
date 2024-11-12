@@ -8,11 +8,6 @@ from __future__ import annotations
 import torch
 
 import omni.isaac.core.utils.torch as torch_utils
-from omni.isaac.core.utils.torch.rotations import (
-    compute_heading_and_up,
-    compute_rot,
-    quat_conjugate,
-)
 
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
@@ -150,27 +145,23 @@ def tolerance_gaussian(
     value_at_margin: float = 0.1,
 ) -> torch.Tensor:
     in_bounds = (lower <= x) & (x <= upper)
+
     if margin == 0.0:
         return torch.where(
             in_bounds,
-            torch.tensor(1.0, dtype=x.dtype),
-            torch.tensor(0.0, dtype=x.dtype),
+            torch.tensor(1.0, dtype=x.dtype, device=x.device),
+            torch.tensor(0.0, dtype=x.dtype, device=x.device),
         )
 
-    d = torch.where(x < lower, lower - x, x - upper) / margin
+    scale = margin / torch.sqrt(
+        -2 * torch.log(torch.tensor(value_at_margin, dtype=x.dtype, device=x.device))
+    )
+
+    d = torch.where(x < lower, lower - x, x - upper) / scale
     value = torch.where(
         in_bounds,
-        torch.tensor(1.0, dtype=x.dtype),
-        torch.exp(
-            -0.5
-            * (
-                d
-                / torch.sqrt(
-                    -2 * torch.log(torch.tensor(value_at_margin, dtype=x.dtype))
-                )
-            )
-            ** 2
-        ),
+        torch.tensor(1.0, dtype=x.dtype, device=x.device),
+        torch.exp(-0.5 * d**2),
     )
     return value
 
@@ -211,7 +202,7 @@ def compute_rewards(
 ):
     # stand reward
     standing = tolerance_gaussian(
-        torso_height, stand_height, float("inf"), stand_height / 2
+        torso_height, stand_height, float("inf"), stand_height / 2, 0.1
     )
     upright = (1 + torch.cos(torso_angle)) / 2
     stand_reward = (3 * standing + upright) / 4
@@ -220,7 +211,6 @@ def compute_rewards(
     move_reward = tolerance_linear(
         torso_speed, move_speed, float("inf"), move_speed / 2, 0.5
     )
-
     return stand_reward * (5 * move_reward + 1) / 6
 
 
