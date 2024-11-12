@@ -1,0 +1,813 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary cameraSettings = {
+            dictionary Front = {
+                double3 position = (0, 0, 50000)
+                double radius = 500
+            }
+            dictionary Perspective = {
+                double3 position = (1.1493664409232105, 4.277216837015629, 2.24730604728932)
+                double3 target = (0.8324997437466668, 2.9282620548350056, 1.2239815556739428)
+            }
+            dictionary Right = {
+                double3 position = (-50000, 0, -1.1102230246251565e-11)
+                double radius = 500
+            }
+            dictionary Top = {
+                double3 position = (-4.329780281177466e-12, 50000, 1.1102230246251565e-11)
+                double radius = 500
+            }
+            string boundCamera = "/OmniverseKit_Persp"
+        }
+        dictionary navmeshSettings = {
+            double agentHeight = 180
+            double agentRadius = 20
+            bool excludeRigidBodies = 1
+            int ver = 1
+            double voxelCeiling = 460
+        }
+        dictionary omni_layer = {
+            string authoring_layer = "./walker.usda"
+            dictionary locked = {
+            }
+            dictionary muteness = {
+            }
+        }
+        dictionary physicsSettings = {
+        }
+        dictionary renderSettings = {
+            float3 "rtx:debugView:pixelDebug:textColor" = (0, 1e18, 0)
+            float3 "rtx:fog:fogColor" = (0.75, 0.75, 0.75)
+            float3 "rtx:index:regionOfInterestMax" = (0, 0, 0)
+            float3 "rtx:index:regionOfInterestMin" = (0, 0, 0)
+            float3 "rtx:iray:environment_dome_ground_position" = (0, 0, 0)
+            float3 "rtx:iray:environment_dome_ground_reflectivity" = (0, 0, 0)
+            float3 "rtx:iray:environment_dome_rotation_axis" = (3.4028235e38, 3.4028235e38, 3.4028235e38)
+            float3 "rtx:post:backgroundZeroAlpha:backgroundDefaultColor" = (0, 0, 0)
+            float3 "rtx:post:colorcorr:contrast" = (1, 1, 1)
+            float3 "rtx:post:colorcorr:gain" = (1, 1, 1)
+            float3 "rtx:post:colorcorr:gamma" = (1, 1, 1)
+            float3 "rtx:post:colorcorr:offset" = (0, 0, 0)
+            float3 "rtx:post:colorcorr:saturation" = (1, 1, 1)
+            float3 "rtx:post:colorgrad:blackpoint" = (0, 0, 0)
+            float3 "rtx:post:colorgrad:contrast" = (1, 1, 1)
+            float3 "rtx:post:colorgrad:gain" = (1, 1, 1)
+            float3 "rtx:post:colorgrad:gamma" = (1, 1, 1)
+            float3 "rtx:post:colorgrad:lift" = (0, 0, 0)
+            float3 "rtx:post:colorgrad:multiply" = (1, 1, 1)
+            float3 "rtx:post:colorgrad:offset" = (0, 0, 0)
+            float3 "rtx:post:colorgrad:whitepoint" = (1, 1, 1)
+            float3 "rtx:post:lensDistortion:lensFocalLengthArray" = (10, 30, 50)
+            float3 "rtx:post:lensFlares:anisoFlareFalloffX" = (450, 475, 500)
+            float3 "rtx:post:lensFlares:anisoFlareFalloffY" = (10, 10, 10)
+            float3 "rtx:post:lensFlares:cutoffPoint" = (2, 2, 2)
+            float3 "rtx:post:lensFlares:haloFlareFalloff" = (10, 10, 10)
+            float3 "rtx:post:lensFlares:haloFlareRadius" = (75, 75, 75)
+            float3 "rtx:post:lensFlares:isotropicFlareFalloff" = (50, 50, 50)
+            float3 "rtx:post:tonemap:whitepoint" = (1, 1, 1)
+            float3 "rtx:raytracing:inscattering:singleScatteringAlbedo" = (0.9, 0.9, 0.9)
+            float3 "rtx:raytracing:inscattering:transmittanceColor" = (0.5, 0.5, 0.5)
+            float3 "rtx:sceneDb:ambientLightColor" = (0.1, 0.1, 0.1)
+        }
+    }
+    defaultPrim = "walker2d"
+    endTimeCode = 100
+    metersPerUnit = 1
+    startTimeCode = 0
+    timeCodesPerSecond = 60
+    upAxis = "Z"
+)
+
+over "Render" (
+    hide_in_stage_window = true
+)
+{
+}
+
+def Xform "walker2d" (
+    delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+    instanceable = false
+)
+{
+    def Xform "body"
+    {
+        double3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+
+        def "joints"
+        {
+            def PhysicsRevoluteJoint "thigh_right" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/body/torso>
+                rel physics:body1 = </walker2d/body/thigh_right>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                point3f physics:localPos0 = (-1.0586051e-9, 0, -0.3)
+                point3f physics:localPos1 = (-1.0586051e-9, 0, 0.225)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -100
+                float physics:upperLimit = 20
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.99
+                float physxLimit:X:limitSoftness = 0.01
+                float physxLimit:X:stiffness = 0
+            }
+
+            def PhysicsRevoluteJoint "leg_right" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/body/thigh_right>
+                rel physics:body1 = </walker2d/body/leg_right>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                point3f physics:localPos0 = (-5.1054747e-11, 0, -0.225)
+                point3f physics:localPos1 = (-1.0586051e-9, -7.450581e-9, 0.25)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 150
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.99
+                float physxLimit:X:limitSoftness = 0.01
+                float physxLimit:X:stiffness = 0
+            }
+
+            def PhysicsRevoluteJoint "foot_right" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/body/leg_right>
+                rel physics:body1 = </walker2d/body/foot_right>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                point3f physics:localPos0 = (-0, -8.940697e-9, -0.25)
+                point3f physics:localPos1 = (-0.06, -8.940697e-9, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -45
+                float physics:upperLimit = 45
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.99
+                float physxLimit:X:limitSoftness = 0.01
+                float physxLimit:X:stiffness = 0
+            }
+
+            def PhysicsRevoluteJoint "thigh_left" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/body/torso>
+                rel physics:body1 = </walker2d/body/thigh_left>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                point3f physics:localPos0 = (-1.0586051e-9, 0, -0.3)
+                point3f physics:localPos1 = (-1.0586051e-9, 0, 0.225)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -100
+                float physics:upperLimit = 20
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.99
+                float physxLimit:X:limitSoftness = 0.01
+                float physxLimit:X:stiffness = 0
+            }
+
+            def PhysicsRevoluteJoint "leg_left" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/body/thigh_left>
+                rel physics:body1 = </walker2d/body/leg_left>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                point3f physics:localPos0 = (-1.0586051e-9, 0, -0.225)
+                point3f physics:localPos1 = (-1.0586051e-9, 0, 0.25)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 150
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.99
+                float physxLimit:X:limitSoftness = 0.01
+                float physxLimit:X:stiffness = 0
+            }
+
+            def PhysicsRevoluteJoint "foot_left" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/body/leg_left>
+                rel physics:body1 = </walker2d/body/foot_left>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                point3f physics:localPos0 = (-1.4901161e-9, 0, -0.25)
+                point3f physics:localPos1 = (-0.06, 0, -1.3411046e-9)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -45
+                float physics:upperLimit = 45
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.99
+                float physxLimit:X:limitSoftness = 0.01
+                float physxLimit:X:stiffness = 0
+            }
+        }
+
+        def Xform "torso" (
+            delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI", "PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            bool physics:kinematicEnabled = 0
+            vector3f physics:velocity = (0, 0, 0)
+            bool physxArticulation:articulationEnabled = 1
+            bool physxArticulation:enabledSelfCollisions = 0
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 2
+            int physxRigidBody:lockedRotAxis = 5
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "torso" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.07, -0.07, -0.37), (0.07, 0.07, 0.37)]
+                    double height = 0.6
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.07
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "torso"
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.07, -0.07, -0.37), (0.07, 0.07, 0.37)]
+                    double height = 0.6
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    double radius = 0.07
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+
+        def Xform "thigh_right" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            vector3f physics:velocity = (0, 0, 0)
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 0
+            int physxRigidBody:lockedRotAxis = 0
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (-0, 1, 0, 0), (0, -0, 1, 0), (0, 0, -0.525, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "thigh_right" (
+                    delete apiSchemas = ["PhysxForceAPI"]
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.05, -0.05, -0.275), (0.05, 0.05, 0.275)]
+                    double height = 0.45
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "thigh_right"
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.05, -0.05, -0.275), (0.05, 0.05, 0.275)]
+                    double height = 0.45
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+
+        def Xform "leg_right" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            vector3f physics:velocity = (0, 0, 0)
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 0
+            int physxRigidBody:lockedRotAxis = 0
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (-0, 1, 0, 0), (0, -0, 1, 0), (0, 0, -1, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "leg_right" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.04, -0.04, -0.29), (0.04, 0.04, 0.29)]
+                    double height = 0.5
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.04
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "leg_right"
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.04, -0.04, -0.29), (0.04, 0.04, 0.29)]
+                    double height = 0.5
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    double radius = 0.04
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+
+        def Xform "foot_right" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI", "PhysxArticulationForceSensorAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            bool physics:kinematicEnabled = 0
+            vector3f physics:velocity = (0, 0, 0)
+            vector3f physxArticulationForceSensor:force = (0.0039860923, -8.115809e-10, -0.0007975862)
+            vector3f physxArticulationForceSensor:torque = (7.0726042e-12, 0.00028262602, -1.0952278e-11)
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 0
+            int physxRigidBody:lockedRotAxis = 0
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.06, 0, -1.25, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "foot_right" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "X"
+                    float3[] extent = [(-0.15, -0.05, -0.05), (0.15, 0.05, 0.05)]
+                    double height = 0.2
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "foot_right"
+                {
+                    uniform token axis = "X"
+                    float3[] extent = [(-0.15, -0.05, -0.05), (0.15, 0.05, 0.05)]
+                    double height = 0.2
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+
+        def Xform "leg_left" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            vector3f physics:velocity = (0, 0, 0)
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 0
+            int physxRigidBody:lockedRotAxis = 0
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (-0, 1, 0, 0), (0, -0, 1, 0), (0, 0, -1, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "leg_left" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.04, -0.04, -0.29), (0.04, 0.04, 0.29)]
+                    double height = 0.5
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.04
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "leg_left"
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.04, -0.04, -0.29), (0.04, 0.04, 0.29)]
+                    double height = 0.5
+                    color3f[] primvars:displayColor = []
+                    double radius = 0.04
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+
+        def Xform "thigh_left" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            vector3f physics:velocity = (0, 0, 0)
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 0
+            int physxRigidBody:lockedRotAxis = 0
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (-0, 1, 0, 0), (0, -0, 1, 0), (0, 0, -0.525, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "thigh_left" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.05, -0.05, -0.275), (0.05, 0.05, 0.275)]
+                    double height = 0.45
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "thigh_left"
+                {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.05, -0.05, -0.275), (0.05, 0.05, 0.275)]
+                    double height = 0.45
+                    color3f[] primvars:displayColor = []
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+
+        def Xform "foot_left" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxRigidBodyAPI", "PhysxArticulationForceSensorAPI"]
+        )
+        {
+            vector3f physics:angularVelocity = (0, 0, 0)
+            float physics:density = 1000
+            vector3f physics:velocity = (0, 0, 0)
+            vector3f physxArticulationForceSensor:force = (0.0010080013, -2.6280944e-10, 0.0005302327)
+            vector3f physxArticulationForceSensor:torque = (1.5806917e-13, -0.0000016637034, 1.6772974e-12)
+            float physxRigidBody:angularDamping = 0.01
+            bool physxRigidBody:enableGyroscopicForces = 0
+            int physxRigidBody:lockedPosAxis = 0
+            int physxRigidBody:lockedRotAxis = 0
+            float physxRigidBody:maxContactImpulse = 1e32
+            float physxRigidBody:maxDepenetrationVelocity = 10
+            float physxRigidBody:maxLinearVelocity = 1000
+            bool physxRigidBody:retainAccelerations = 1
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0.06, 0, -1.25, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+
+            def "collisions" (
+                instanceable = true
+            )
+            {
+                def Capsule "foot_left" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                )
+                {
+                    uniform token axis = "X"
+                    float3[] extent = [(-0.15, -0.05, -0.05), (0.15, 0.05, 0.05)]
+                    double height = 0.2
+                    uniform token physics:approximation = "convexHull"
+                    float physxCollision:contactOffset = 0.02
+                    float physxCollision:restOffset = 0
+                    color3f[] primvars:displayColor = [(0.97, 0.38, 0.06)]
+                    uniform token purpose = "guide"
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+
+            def "visuals" (
+                instanceable = true
+            )
+            {
+                def Capsule "foot_left"
+                {
+                    uniform token axis = "X"
+                    float3[] extent = [(-0.15, -0.05, -0.05), (0.15, 0.05, 0.05)]
+                    double height = 0.2
+                    color3f[] primvars:displayColor = []
+                    double radius = 0.05
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
+                }
+            }
+        }
+    }
+
+    def Xform "constraint"
+    {
+        double3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+
+        def Xform "joints"
+        {
+            double3 xformOp:rotateXYZ = (0, 0, 0)
+            double3 xformOp:scale = (1, 1, 1)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+
+            def PhysicsPrismaticJoint "torso_x_constraint" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "X"
+                rel physics:body0 = </walker2d/constraint/anchor>
+                rel physics:body1 = </walker2d/constraint/slider1>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                bool physics:jointEnabled = 1
+                point3f physics:localPos0 = (-1.4901161e-9, 0, 0)
+                point3f physics:localPos1 = (-1.4901161e-9, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -100000
+                float physics:upperLimit = 100000
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.1
+                float physxLimit:X:stiffness = 5
+            }
+
+            def PhysicsPrismaticJoint "torso_z_constraint" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Z"
+                rel physics:body0 = </walker2d/constraint/slider1>
+                rel physics:body1 = </walker2d/constraint/slider2>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                bool physics:jointEnabled = 1
+                point3f physics:localPos0 = (0, 0, -1)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -100000
+                float physics:upperLimit = 100000
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.1
+                float physxLimit:X:stiffness = 5
+            }
+
+            def PhysicsRevoluteJoint "torso_rot_constraint" (
+                delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI", "PhysicsDriveAPI:angular"]
+                prepend apiSchemas = ["PhysxLimitAPI:X", "PhysxJointAPI"]
+            )
+            {
+                float drive:angular:physics:damping = 0.0017453292
+                float drive:angular:physics:stiffness = 0.08726646
+                float drive:angular:physics:targetPosition = 0
+                uniform token physics:axis = "Y"
+                rel physics:body0 = </walker2d/constraint/slider2>
+                rel physics:body1 = </walker2d/body/torso>
+                float physics:breakForce = 3.4028235e38
+                float physics:breakTorque = 3.4028235e38
+                bool physics:jointEnabled = 1
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -36000
+                float physics:upperLimit = 36000
+                float physxJoint:maxJointVelocity = 5729.578
+                float physxLimit:X:damping = 0.1
+                float physxLimit:X:stiffness = 5
+            }
+        }
+
+        def Cube "anchor" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI"]
+            instanceable = true
+        )
+        {
+            float3[] extent = [(-0.05, -0.05, -0.05), (0.05, 0.05, 0.05)]
+            bool physics:kinematicEnabled = 1
+            bool physics:rigidBodyEnabled = 0
+            float physxRigidBody:angularDamping = 0
+            float physxRigidBody:maxLinearVelocity = 0
+            double size = 0.1
+            double3 xformOp:rotateXYZ = (0, 0, 0)
+            double3 xformOp:scale = (1, 1, 1)
+            double3 xformOp:translate = (0, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+        }
+
+        def Cube "slider1" (
+            delete apiSchemas = ["PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            instanceable = true
+        )
+        {
+            float3[] extent = [(-0.05, -0.05, -0.05), (0.05, 0.05, 0.05)]
+            bool physics:collisionEnabled = 0
+            float physics:density = 1
+            bool physics:kinematicEnabled = 0
+            bool physics:rigidBodyEnabled = 1
+            float physxRigidBody:angularDamping = 0
+            int physxRigidBody:lockedPosAxis = 2
+            int physxRigidBody:lockedRotAxis = 5
+            double size = 0.1
+            double3 xformOp:rotateXYZ = (0, 0, 0)
+            double3 xformOp:scale = (1, 1, 1)
+            double3 xformOp:translate = (0, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+        }
+
+        def Cube "slider2" (
+            delete apiSchemas = ["PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            instanceable = true
+        )
+        {
+            float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+            bool physics:collisionEnabled = 0
+            float physics:density = 1
+            bool physics:kinematicEnabled = 0
+            bool physics:rigidBodyEnabled = 1
+            float physxRigidBody:angularDamping = 0
+            int physxRigidBody:lockedPosAxis = 2
+            int physxRigidBody:lockedRotAxis = 5
+            double size = 0.01
+            double3 xformOp:rotateXYZ = (0, 0, 0)
+            double3 xformOp:scale = (1, 1, 1)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+        }
+    }
+}
+
