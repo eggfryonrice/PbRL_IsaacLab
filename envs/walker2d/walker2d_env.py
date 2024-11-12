@@ -32,8 +32,8 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
     sim: SimulationCfg = SimulationCfg(dt=0.005, render_interval=decimation)
 
     # set friction coefficients
-    sim.physics_material.static_friction = 0.9
-    sim.physics_material.dynamic_friction = 0.9
+    sim.physics_material.static_friction = 0.7
+    sim.physics_material.dynamic_friction = 0.7
 
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
@@ -42,8 +42,8 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="average",
             restitution_combine_mode="average",
-            static_friction=0.9,
-            dynamic_friction=0.9,
+            static_friction=0.7,
+            dynamic_friction=0.7,
             restitution=0.0,
         ),
         debug_vis=False,
