@@ -9,7 +9,7 @@ from omni.isaac.lab.actuators import ImplicitActuatorCfg
 from omni.isaac.lab.assets import ArticulationCfg
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-usd_file_path = os.path.join(current_dir, "walker2d.usd")
+usd_file_path = os.path.join(current_dir, "walker2d.usda")
 
 WALKER2D_CFG = ArticulationCfg(
     prim_path="{ENV_REGEX_NS}/Robot",
