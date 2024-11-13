@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import torch
 
-import omni.isaac.core.utils.torch as torch_utils
-
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
@@ -40,6 +38,14 @@ class LocomotionEnv(DirectRLEnv):
             if name not in excluded_joints
         ]
 
+        self._body_dof_idx, body_names = self.robot.find_bodies(".*")
+        excluded_bodies = {"slider1", "slider2", "anchor"}
+        self._body_dof_idx = [
+            idx
+            for idx, name in zip(self._body_dof_idx, body_names)
+            if name not in excluded_bodies
+        ]
+
     def _setup_scene(self):
         self.robot = Articulation(self.cfg.robot)
         # add ground plane
@@ -63,34 +69,29 @@ class LocomotionEnv(DirectRLEnv):
         self.robot.set_joint_effort_target(forces, joint_ids=self._joint_dof_idx)
 
     def _compute_intermediate_values(self):
-        self.torso_position, self.torso_rotation = (
-            self.robot.data.root_pos_w,
-            self.robot.data.root_quat_w,
-        )
+        self.torso_position = self.robot.data.root_pos_w
         self.velocity, self.ang_velocity = (
             self.robot.data.root_lin_vel_w,
             self.robot.data.root_ang_vel_w,
         )
+        self.body_rotation = self.robot.data.body_quat_w
         self.dof_pos, self.dof_vel = (
             self.robot.data.joint_pos,
             self.robot.data.joint_vel,
         )
 
-        self.torso_angle, self.dof_pos_scaled = compute_intermediate_values(
-            self.torso_rotation,
-            self.dof_pos,
-            self.robot.data.soft_joint_pos_limits[0, :, 0],
-            self.robot.data.soft_joint_pos_limits[0, :, 1],
+        self.orientation_xx, self.orientation_xz = compute_intermediate_values(
+            self.body_rotation[:, self._body_dof_idx]
         )
 
     def _get_observations(self) -> dict:
         obs = torch.cat(
             (
+                self.orientation_xx,
+                self.orientation_xz,
                 self.torso_position[:, 2].view(-1, 1),
-                self.torso_angle.view(-1, 1),
-                self.dof_pos_scaled[:, self._joint_dof_idx],
                 self.velocity[:, [0, 2]] * self.cfg.vel_scale,
-                (self.ang_velocity[:, 1] * self.cfg.ang_vel_scale).view(-1, 1),
+                self.ang_velocity[:, [1]],
                 self.dof_vel[:, self._joint_dof_idx] * self.cfg.dof_vel_scale,
             ),
             dim=-1,
@@ -102,7 +103,7 @@ class LocomotionEnv(DirectRLEnv):
         total_reward = compute_rewards(
             self.torso_position[:, 2],
             self.cfg.stand_height,
-            self.torso_angle,
+            self.orientation_xx[0],
             self.velocity[:, 0],
             self.cfg.move_speed,
         )
@@ -196,7 +197,7 @@ def tolerance_linear(
 def compute_rewards(
     torso_height: torch.Tensor,
     stand_height: float,
-    torso_angle: torch.Tensor,
+    torso_xx: torch.Tensor,
     torso_speed: torch.Tensor,
     move_speed: float,
 ):
@@ -204,7 +205,7 @@ def compute_rewards(
     standing = tolerance_gaussian(
         torso_height, stand_height, float("inf"), stand_height / 2, 0.1
     )
-    upright = (1 + torch.cos(torso_angle)) / 2
+    upright = (1 + torso_xx) / 2
     stand_reward = (3 * standing + upright) / 4
 
     # move reward
@@ -216,15 +217,16 @@ def compute_rewards(
 
 @torch.jit.script
 def compute_intermediate_values(
-    torso_rotation: torch.Tensor,
-    dof_pos: torch.Tensor,
-    dof_lower_limits: torch.Tensor,
-    dof_upper_limits: torch.Tensor,
+    body_rotation: torch.Tensor,
 ):
-    angle_top = torch.arcsin(torso_rotation[:, 2]) * 2
-
-    dof_pos_scaled = torch_utils.maths.unscale(
-        dof_pos, dof_lower_limits, dof_upper_limits
+    w, x, y, z = (
+        body_rotation[..., 0],
+        body_rotation[..., 1],
+        body_rotation[..., 2],
+        body_rotation[..., 3],
     )
 
-    return angle_top, dof_pos_scaled
+    xx = 1 - 2 * (y**2 + z**2)
+    xz = 2 * (x * z + y * w)
+
+    return xx, xz

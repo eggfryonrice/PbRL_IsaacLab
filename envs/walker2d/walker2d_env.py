@@ -25,7 +25,7 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
     episode_length_s = 25.0 + 1e-6
     decimation = 5
     action_space = Box(low=-1.0, high=1.0, shape=(6,))
-    observation_space = 17
+    observation_space = 24
     state_space = 0
 
     # simulation
@@ -66,7 +66,7 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
         20.0000,  # foot_left
     ]
 
-    vel_scale: float = 0.1
+    vel_scale: float = 1.0
     ang_vel_scale: float = 0.1
     dof_vel_scale: float = 0.1
 
