@@ -1,6 +1,8 @@
 **/__pycache__/
 exp/
+exp_bpref/
 experiment.py
+.thumbs/
 
 
 # Byte-compiled / optimized / DLL files

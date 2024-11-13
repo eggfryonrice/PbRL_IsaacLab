@@ -28,14 +28,12 @@ class SimpleEnvWrapper(gym.Wrapper):
         if isinstance(action, np.ndarray):
             action = torch.FloatTensor(action).to(self.device)
         action = action.unsqueeze(0)
-        obs_raw, raw_rew, raw_terminated, raw_truncated, raw_extra = self.env.step(
-            action
-        )
+        obs_raw, raw_rew, terminated, timeout, raw_extra = self.env.step(action)
 
         obs = self._process_obs(obs_raw)
         rew = raw_rew[0].detach().cpu().numpy()
-        done = (raw_terminated | raw_truncated)[0].detach().cpu().numpy()
-        done_no_max = raw_truncated[0].detach().cpu().numpy()
+        done = (terminated | timeout)[0].detach().cpu().numpy()
+        done_no_max = (terminated & ~timeout)[0].detach().cpu().numpy()
         extra = self._process_extra(raw_extra)
 
         return obs, rew, done, done_no_max, extra
