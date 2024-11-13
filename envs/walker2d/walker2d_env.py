@@ -23,13 +23,13 @@ from .locomotion_env import LocomotionEnv
 class Walker2dEnvCfg(DirectRLEnvCfg):
     # env
     episode_length_s = 25.0 + 1e-6
-    decimation = 5
+    decimation = 2
     action_space = Box(low=-1.0, high=1.0, shape=(6,))
     observation_space = 24
     state_space = 0
 
     # simulation
-    sim: SimulationCfg = SimulationCfg(dt=0.005, render_interval=decimation)
+    sim: SimulationCfg = SimulationCfg(dt=0.0125, render_interval=decimation)
 
     # set friction coefficients
     sim.physics_material.static_friction = 0.7

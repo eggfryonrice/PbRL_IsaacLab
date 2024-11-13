@@ -7,18 +7,22 @@ env: walker2d
 
 # Basic setup
 experiment: sac
+agent_name: sac
+
 device: cuda
-seed: 0
+seed: 1
 
 # training
 num_train_steps: 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 5000
+
+# evaluation
 eval_frequency: 100000000
 num_eval_episodes: 10
 
 # unsupervise
-num_unsup_steps: 0
+num_unsup_steps: 10000
 topK: 5
 reset_update: 100
 

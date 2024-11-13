@@ -22,10 +22,11 @@ import my_utils
 import hydra
 import gymnasium as gym
 
-import envs
 from logger import Logger
 from replay_buffer import ReplayBuffer
 from IsaacLabSingleEnvWrapper import SimpleEnvWrapper
+
+import envs
 
 
 class Workspace(object):
@@ -37,7 +38,7 @@ class Workspace(object):
             self.work_dir,
             save_tb=cfg.log_save_tb,
             log_frequency=cfg.log_frequency,
-            agent=cfg.experiment,
+            agent=cfg.agent_name,
         )
 
         my_utils.set_seed_everywhere(cfg.seed)
@@ -52,6 +53,8 @@ class Workspace(object):
             device=cfg.device,
             render_mode="rgb_array" if args_cli.video else None,
         )
+        if env.viewport_camera_controller != None:
+            env.viewport_camera_controller.update_view_location([-6, -3, 3], [2, 0, 2])
         if args_cli.video:
             video_kwargs = {
                 "video_folder": os.path.join(self.work_dir, "videos", "train"),
@@ -122,18 +125,16 @@ class Workspace(object):
         episode, episode_reward, done = 0, 0, True
         if self.log_success:
             episode_success = 0
-        fixed_start_time = time.time()
-        episode_step = 0
+        start_time = time.time()
         eval_count = 1
 
         while self.step < self.cfg.num_train_steps:
             if done:
                 if self.step > 0:
                     self.logger.log(
-                        "train/total_duration",
-                        time.time() - fixed_start_time,
-                        self.step,
+                        "train/duration", time.time() - start_time, self.step
                     )
+                    start_time = time.time()
                     self.logger.dump(
                         self.step, save=(self.step > self.cfg.num_seed_steps)
                     )
@@ -148,7 +149,6 @@ class Workspace(object):
                     eval_count += 1
 
                 self.logger.log("train/episode_reward", episode_reward, self.step)
-                self.logger.log("train/episode_step", episode_step, self.step)
 
                 if self.log_success:
                     self.logger.log("train/episode_success", episode_success, self.step)
@@ -159,7 +159,6 @@ class Workspace(object):
                 episode_reward = 0
                 if self.log_success:
                     episode_success = 0
-                episode_step = 0
                 episode += 1
 
                 self.logger.log("train/episode", episode, self.step)
@@ -210,13 +209,12 @@ class Workspace(object):
             self.replay_buffer.add(obs, action, reward, next_obs, done, done_no_max)
 
             obs = next_obs
-            episode_step += 1
             self.step += 1
 
         self.agent.save(self.work_dir, self.step)
 
 
-@hydra.main(config_path="config", config_name="train", version_base="1.1")
+@hydra.main(config_path="config", config_name="train_SAC", version_base="1.1")
 def main(cfg):
     workspace = Workspace(cfg)
     workspace.run()
