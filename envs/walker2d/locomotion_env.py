@@ -103,7 +103,7 @@ class LocomotionEnv(DirectRLEnv):
         total_reward = compute_rewards(
             self.torso_position[:, 2],
             self.cfg.stand_height,
-            self.orientation_xx[0],
+            self.orientation_xx[:, 0],
             self.velocity[:, 0],
             self.cfg.move_speed,
         )
@@ -135,6 +135,14 @@ class LocomotionEnv(DirectRLEnv):
         self.robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
 
         self._compute_intermediate_values()
+
+    def reset_idx(self, idx: torch.Tensor | None = None):
+        if idx is None:
+            idx = torch.arange(self.num_envs, dtype=torch.int64, device=self.device)
+
+        self._reset_idx(idx)
+
+        return self._get_observations(), self.extras
 
 
 @torch.jit.script

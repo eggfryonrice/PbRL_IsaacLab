@@ -101,6 +101,10 @@ class SACAgent(Agent):
         self.train()
         self.critic_target.train()
 
+        # for update frequency
+        self.actor_update_cnt = 0
+        self.critic_target_update_cnt = 0
+
     def reset_critic(self, critic_cfg):
         self.critic = hydra.utils.instantiate(critic_cfg).to(self.device)
         self.critic_target = hydra.utils.instantiate(critic_cfg).to(self.device)
@@ -133,13 +137,10 @@ class SACAgent(Agent):
         return self.log_alpha.exp()
 
     def act(self, obs, sample=False):
-        obs = torch.FloatTensor(obs).to(self.device)
-        obs = obs.unsqueeze(0)
         dist = self.actor(obs)
         action = dist.sample() if sample else dist.mean
         action = action.clamp(*self.action_range)
-        assert action.ndim == 2 and action.shape[0] == 1
-        return action[0].detach().cpu().numpy()
+        return action
 
     def update_critic(
         self, obs, action, reward, next_obs, not_done, logger, step, print_flag=True
@@ -285,13 +286,15 @@ class SACAgent(Agent):
                 obs, action, reward, next_obs, not_done_no_max, logger, step, print_flag
             )
 
-            if step % self.actor_update_frequency == 0:
+            if self.actor_update_cnt % self.actor_update_frequency == 0:
                 self.update_actor_and_alpha(obs, logger, step, print_flag)
+            self.actor_update_cnt += 1
 
-        if step % self.critic_target_update_frequency == 0:
+        if self.critic_target_update_cnt % self.critic_target_update_frequency == 0:
             my_utils.soft_update_params(
                 self.critic, self.critic_target, self.critic_tau
             )
+        self.critic_target_update_cnt += 1
 
     def update_after_reset(
         self, replay_buffer, logger, step, gradient_update=1, policy_update=True
@@ -341,10 +344,12 @@ class SACAgent(Agent):
                 print_flag=print_flag,
             )
 
-            if step % self.actor_update_frequency == 0:
+            if self.actor_update_cnt % self.actor_update_frequency == 0:
                 self.update_actor_and_alpha(obs, logger, step, print_flag)
+            self.actor_update_cnt += 1
 
-        if step % self.critic_target_update_frequency == 0:
+        if self.critic_target_update_cnt % self.critic_target_update_frequency == 0:
             my_utils.soft_update_params(
                 self.critic, self.critic_target, self.critic_tau
             )
+        self.critic_target_update_cnt += 1

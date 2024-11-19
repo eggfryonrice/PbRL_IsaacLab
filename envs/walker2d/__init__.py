@@ -3,10 +3,13 @@ import gymnasium as gym
 from .walker2d_env import Walker2dEnv, Walker2dEnvCfg
 
 
-def walker2d_env_create(seed=None, device="cuda:0", render_mode=None, **kwargs):
+def walker2d_env_create(
+    seed=None, device="cuda:0", num_envs=1, render_mode=None, **kwargs
+):
     cfg = Walker2dEnvCfg()
     cfg.seed = seed
     cfg.sim.device = device
+    cfg.scene.num_envs = num_envs
     return Walker2dEnv(cfg=cfg, render_mode=render_mode, **kwargs)
 
 

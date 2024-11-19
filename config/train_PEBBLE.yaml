@@ -11,12 +11,14 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 1
+seed: 17
+num_envs: 10
 
 # training
 num_train_steps: 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 5000
+num_gradient_update: 1
 
 # evaluation
 eval_frequency: 100000000
@@ -28,15 +30,15 @@ topK: 5
 reset_update: 100
 
 # reward learning
+max_feedback: 300
+reward_batch: 30
 segment: 50
 activation: tanh
 num_interact: 20000 # how often we label preferences
 reward_lr: 0.0003
-reward_batch: 100
 reward_update: 50
 feed_type: 1
 ensemble_size: 3
-max_feedback: 1000
 large_batch: 10
 label_margin: 0.0
 teacher_beta: -1

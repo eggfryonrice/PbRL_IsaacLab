@@ -24,11 +24,13 @@ from logger import Logger
 from replay_buffer import ReplayBuffer
 from reward_model import RewardModel
 from collections import deque
-from IsaacLabSingleEnvWrapper import SimpleEnvWrapper
+from IsaacLabMultiEnvWrapper import MultiEnvWrapper
 
 import envs
 import my_utils
 import hydra
+
+from torch.profiler import profile, ProfilerActivity
 
 
 class Workspace(object):
@@ -45,15 +47,19 @@ class Workspace(object):
         )
 
         my_utils.set_seed_everywhere(cfg.seed)
+
         self.device = torch.device(cfg.device)
-        self.log_success = False
+        self.num_envs = cfg.num_envs
 
         env = gym.make(
             cfg.env,
             seed=cfg.seed,
             device=cfg.device,
+            num_envs=cfg.num_envs,
             render_mode="rgb_array" if args_cli.video else None,
         )
+        if env.viewport_camera_controller != None:
+            env.viewport_camera_controller.update_view_location([-6, -3, 3], [2, 0, 2])
         if args_cli.video:
             video_kwargs = {
                 "video_folder": os.path.join(self.work_dir, "videos", "train"),
@@ -63,11 +69,7 @@ class Workspace(object):
             }
             print("[INFO]: Recording videos during training.")
             env = gym.wrappers.RecordVideo(env, **video_kwargs)
-        if env.unwrapped.viewport_camera_controller != None:
-            env.unwrapped.viewport_camera_controller.update_view_location(
-                [-6, -3, 3], [2, 0, 2]
-            )
-        self.env = SimpleEnvWrapper(env)
+        self.env = MultiEnvWrapper(env)
 
         cfg.agent.obs_dim = self.env.observation_space.shape[0]
         cfg.agent.action_dim = self.env.action_space.shape[0]
@@ -78,10 +80,11 @@ class Workspace(object):
         self.agent = hydra.utils.instantiate(cfg.agent)
 
         self.replay_buffer = ReplayBuffer(
-            self.env.observation_space.shape,
-            self.env.action_space.shape,
-            int(cfg.replay_buffer_capacity),
-            self.device,
+            obs_shape=self.env.observation_space.shape,
+            action_shape=self.env.action_space.shape,
+            capacity=int(cfg.replay_buffer_capacity),
+            device=self.device,
+            window=self.num_envs,
         )
 
         # for logging
@@ -106,48 +109,6 @@ class Workspace(object):
             teacher_eps_skip=cfg.teacher_eps_skip,
             teacher_eps_equal=cfg.teacher_eps_equal,
         )
-
-    def evaluate(self):
-        average_episode_reward = 0
-        average_true_episode_reward = 0
-        success_rate = 0
-
-        for _ in range(self.cfg.num_eval_episodes):
-            obs = self.env.reset()
-            self.agent.reset()
-            done = False
-            episode_reward = 0
-            true_episode_reward = 0
-            if self.log_success:
-                episode_success = 0
-
-            while not done:
-                with my_utils.eval_mode(self.agent):
-                    action = self.agent.act(obs, sample=False)
-                obs, reward, done, _, extra = self.env.step(action)
-
-                episode_reward += reward
-                true_episode_reward += reward
-                if self.log_success:
-                    episode_success = max(episode_success, extra["success"])
-
-            average_episode_reward += episode_reward
-            average_true_episode_reward += true_episode_reward
-            if self.log_success:
-                success_rate += episode_success
-
-        average_episode_reward /= self.cfg.num_eval_episodes
-        average_true_episode_reward /= self.cfg.num_eval_episodes
-        if self.log_success:
-            success_rate /= self.cfg.num_eval_episodes
-            success_rate *= 100.0
-
-        self.logger.log("eval/model_episode_reward", average_episode_reward, self.step)
-        self.logger.log("eval/episode_reward", average_true_episode_reward, self.step)
-        if self.log_success:
-            self.logger.log("eval/success_rate", success_rate, self.step)
-            self.logger.log("train/true_episode_success", success_rate, self.step)
-        self.logger.dump(self.step)
 
     def learn_reward(self, first_flag=0):
 
@@ -191,66 +152,55 @@ class Workspace(object):
         print("Reward function is updated!! ACC: " + str(total_acc))
 
     def run(self):
-        episode, episode_reward, done = 0, 0, True
-        if self.log_success:
-            episode_success = 0
-        true_episode_reward = 0
+        episode = 0
+        episode_reward = torch.zeros(
+            self.cfg.num_envs, dtype=torch.float32, device=self.device
+        )
+        true_episode_reward = torch.zeros(
+            self.cfg.num_envs, dtype=torch.float32, device=self.device
+        )
+        done = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
+        obs = self.env.reset()
 
-        # store train returns of recent 10 episodes
         avg_train_true_return = deque([], maxlen=10)
-        start_time = time.time()
-        eval_count = 1
 
         interact_count = 0
         while self.step < self.cfg.num_train_steps:
-            if done:
-                if self.step > 0:
-                    self.logger.log(
-                        "train/duration", time.time() - start_time, self.step
-                    )
-                    start_time = time.time()
-                    self.logger.dump(
-                        self.step, save=(self.step > self.cfg.num_seed_steps)
-                    )
+            # reset done environment
+            done_idx = torch.nonzero(done, as_tuple=True)[0]
+            if done_idx.numel() != 0:
 
-                # evaluate agent periodically
-                if (
-                    self.step - (self.cfg.num_seed_steps + self.cfg.num_unsup_steps)
-                    >= eval_count * self.cfg.eval_frequency
-                ):
-                    self.logger.log("eval/episode", episode, self.step)
-                    self.evaluate()
-                    eval_count += 1
-
-                self.logger.log("train/model_episode_reward", episode_reward, self.step)
-                self.logger.log("train/episode_reward", true_episode_reward, self.step)
-                self.logger.log("train/total_feedback", self.total_feedback, self.step)
                 self.logger.log(
-                    "train/labeled_feedback", self.labeled_feedback, self.step
+                    "train/episode_reward",
+                    true_episode_reward[done_idx].sum().item() / done_idx.numel(),
+                    self.step,
                 )
+                self.logger.log(
+                    "train/model_episode_reward",
+                    true_episode_reward[done_idx].sum().item() / done_idx.numel(),
+                    self.step,
+                )
+                self.logger.log("train/total_feedback", self.total_feedback, self.step)
 
-                if self.log_success:
-                    self.logger.log("train/episode_success", episode_success, self.step)
-                    self.logger.log(
-                        "train/true_episode_success", episode_success, self.step
-                    )
-
-                obs = self.env.reset()
-                self.agent.reset()
-                done = False
-                episode_reward = 0
-                avg_train_true_return.append(true_episode_reward)
-                true_episode_reward = 0
-                if self.log_success:
-                    episode_success = 0
-                episode_step = 0
-                episode += 1
-
+                obs[done_idx] = self.env.reset(done_idx)
+                episode_reward[done_idx] = 0
+                avg_train_true_return.extend(
+                    true_episode_reward[done_idx].detach().cpu().numpy()
+                )
+                true_episode_reward[done_idx] = 0
+                episode += done_idx.numel()
                 self.logger.log("train/episode", episode, self.step)
+                self.logger.dump(self.step, save=(self.step > self.cfg.num_seed_steps))
 
             # sample action for data collection
             if self.step < self.cfg.num_seed_steps:
-                action = self.env.action_space.sample()
+                action = torch.tensor(
+                    np.array(
+                        [self.env.action_space.sample() for _ in range(self.num_envs)]
+                    ),
+                    dtype=torch.float32,
+                    device=self.device,
+                )
             else:
                 with my_utils.eval_mode(self.agent):
                     action = self.agent.act(obs, sample=True)
@@ -354,25 +304,39 @@ class Workspace(object):
                     K=self.cfg.topK,
                 )
 
-            next_obs, reward, done, done_no_max, extra = self.env.step(action)
-            reward_hat = self.reward_model.r_hat(np.concatenate([obs, action], axis=-1))
+            next_obs, reward, done, done_no_max, _ = self.env.step(action)
+            reward_hat = self.reward_model.r_hat_tensor(
+                torch.cat([obs, action], axis=-1)
+            ).squeeze(-1)
 
             # allow infinite bootstrap
-            done = float(done)
-            done_no_max = float(done_no_max)
+            done = done.float()
+            done_no_max = done_no_max.float()
             episode_reward += reward_hat
             true_episode_reward += reward
 
-            if self.log_success:
-                episode_success = max(episode_success, extra["success"])
-
             # adding data to the reward training data
-            self.reward_model.add_data(obs, action, reward, done)
-            self.replay_buffer.add(obs, action, reward_hat, next_obs, done, done_no_max)
+            obs_np = obs.detach().cpu().numpy()
+            action_np = action.detach().cpu().numpy()
+            reward_np = reward.detach().cpu().numpy()
+            next_obs_np = next_obs.detach().cpu().numpy()
+            done_np = done.detach().cpu().numpy()
+            done_no_max_np = done_no_max.detach().cpu().numpy()
+            # adding only the first environment's data to reward model
+            self.reward_model.add_data(
+                obs_np[0], action_np[0], reward_np[0], done_np[0]
+            )
+            self.replay_buffer.add_batch(
+                obs_np,
+                action_np,
+                reward_np.reshape(-1, 1),
+                next_obs_np,
+                done_np.reshape(-1, 1),
+                done_no_max_np.reshape(-1, 1),
+            )
 
             obs = next_obs
-            episode_step += 1
-            self.step += 1
+            self.step += self.num_envs
             interact_count += 1
 
         self.agent.save(self.work_dir, self.step)

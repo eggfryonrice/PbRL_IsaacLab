@@ -51,7 +51,7 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
 
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=1, env_spacing=4.0, replicate_physics=True
+        num_envs=10, env_spacing=8.0, replicate_physics=True
     )
 
     # robot

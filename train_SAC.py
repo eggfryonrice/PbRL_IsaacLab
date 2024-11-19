@@ -15,6 +15,7 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import torch
+import numpy as np
 import os
 import time
 import pickle as pkl
@@ -24,8 +25,7 @@ import gymnasium as gym
 
 from logger import Logger
 from replay_buffer import ReplayBuffer
-from IsaacLabSingleEnvWrapper import SimpleEnvWrapper
-
+from IsaacLabMultiEnvWrapper import MultiEnvWrapper
 import envs
 
 
@@ -44,13 +44,14 @@ class Workspace(object):
         my_utils.set_seed_everywhere(cfg.seed)
 
         self.device = torch.device(cfg.device)
-        self.log_success = False
+        self.num_envs = cfg.num_envs
         self.step = 0
 
         env = gym.make(
             cfg.env,
             seed=cfg.seed,
             device=cfg.device,
+            num_envs=cfg.num_envs,
             render_mode="rgb_array" if args_cli.video else None,
         )
         if env.viewport_camera_controller != None:
@@ -64,7 +65,7 @@ class Workspace(object):
             }
             print("[INFO]: Recording videos during training.")
             env = gym.wrappers.RecordVideo(env, **video_kwargs)
-        self.env = SimpleEnvWrapper(env)
+        self.env = MultiEnvWrapper(env)
 
         cfg.agent.obs_dim = self.env.observation_space.shape[0]
         cfg.agent.action_dim = self.env.action_space.shape[0]
@@ -76,96 +77,47 @@ class Workspace(object):
 
         # no relabel
         self.replay_buffer = ReplayBuffer(
-            self.env.observation_space.shape,
-            self.env.action_space.shape,
-            int(cfg.replay_buffer_capacity),
-            self.device,
+            obs_shape=self.env.observation_space.shape,
+            action_shape=self.env.action_space.shape,
+            capacity=int(cfg.replay_buffer_capacity),
+            device=self.device,
+            window=self.num_envs,
         )
         meta_file = os.path.join(self.work_dir, "metadata.pkl")
         pkl.dump({"cfg": self.cfg}, open(meta_file, "wb"))
 
-    def evaluate(self):
-        average_episode_reward = 0
-        if self.log_success:
-            success_rate = 0
-
-        for _ in range(self.cfg.num_eval_episodes):
-            obs = self.env.reset()
-            self.agent.reset()
-            done = False
-            episode_reward = 0
-
-            if self.log_success:
-                episode_success = 0
-
-            while not done:
-                with my_utils.eval_mode(self.agent):
-                    action = self.agent.act(obs, sample=False)
-                obs, reward, done, _, extra = self.env.step(action)
-                episode_reward += reward
-                if self.log_success:
-                    episode_success = max(episode_success, extra["success"])
-
-            average_episode_reward += episode_reward
-            if self.log_success:
-                success_rate += episode_success
-
-        average_episode_reward /= self.cfg.num_eval_episodes
-        if self.log_success:
-            success_rate /= self.cfg.num_eval_episodes
-            success_rate *= 100.0
-
-        self.logger.log("eval/episode_reward", average_episode_reward, self.step)
-
-        if self.log_success:
-            self.logger.log("eval/success_rate", success_rate, self.step)
-        self.logger.dump(self.step)
-
     def run(self):
-        episode, episode_reward, done = 0, 0, True
-        if self.log_success:
-            episode_success = 0
-        start_time = time.time()
-        eval_count = 1
+        episode = 0
+        episode_reward = torch.zeros(
+            self.cfg.num_envs, dtype=torch.float32, device=self.device
+        )
+        done = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
+
+        obs = self.env.reset()
 
         while self.step < self.cfg.num_train_steps:
-            if done:
-                if self.step > 0:
-                    self.logger.log(
-                        "train/duration", time.time() - start_time, self.step
-                    )
-                    start_time = time.time()
-                    self.logger.dump(
-                        self.step, save=(self.step > self.cfg.num_seed_steps)
-                    )
-
-                # evaluate agent periodically
-                if (
-                    self.step - (self.cfg.num_seed_steps + self.cfg.num_unsup_steps)
-                    >= eval_count * self.cfg.eval_frequency
-                ):
-                    self.logger.log("eval/episode", episode, self.step)
-                    self.evaluate()
-                    eval_count += 1
-
-                self.logger.log("train/episode_reward", episode_reward, self.step)
-
-                if self.log_success:
-                    self.logger.log("train/episode_success", episode_success, self.step)
-
-                obs = self.env.reset()
-                self.agent.reset()
-                done = False
-                episode_reward = 0
-                if self.log_success:
-                    episode_success = 0
-                episode += 1
-
+            # reset done environment
+            done_idx = torch.nonzero(done, as_tuple=True)[0]
+            if done_idx.numel() != 0:
+                obs[done_idx] = self.env.reset(done_idx)
+                self.logger.log(
+                    "train/episode_reward",
+                    episode_reward[done_idx].sum() / done_idx.numel(),
+                    self.step,
+                )
+                episode_reward[done_idx] = 0
+                episode += done_idx.numel()
                 self.logger.log("train/episode", episode, self.step)
+                self.logger.dump(self.step, save=(self.step > self.cfg.num_seed_steps))
 
             # sample action for data collection
             if self.step < self.cfg.num_seed_steps:
-                action = self.env.action_space.sample()
+                action = torch.tensor(
+                    np.array(
+                        [self.env.action_space.sample() for _ in range(self.num_envs)]
+                    ),
+                    dtype=torch.float32,
+                )
             else:
                 with my_utils.eval_mode(self.agent):
                     action = self.agent.act(obs, sample=True)
@@ -186,30 +138,38 @@ class Workspace(object):
                     policy_update=True,
                 )
             elif self.step > self.cfg.num_seed_steps + self.cfg.num_unsup_steps:
-                self.agent.update(self.replay_buffer, self.logger, self.step)
+                self.agent.update(
+                    replay_buffer=self.replay_buffer,
+                    logger=self.logger,
+                    step=self.step,
+                    gradient_update=self.cfg.num_gradient_update,
+                )
             # unsupervised exploration
             elif self.step > self.cfg.num_seed_steps:
                 self.agent.update_state_ent(
                     self.replay_buffer,
                     self.logger,
                     self.step,
-                    gradient_update=1,
+                    gradient_update=self.cfg.num_gradient_update,
                     K=self.cfg.topK,
                 )
 
-            next_obs, reward, done, done_no_max, extra = self.env.step(action)
-            # allow infinite bootstrap
-            done = float(done)
-            done_no_max = float(done_no_max)
+            next_obs, reward, done, done_no_max, _ = self.env.step(action)
+            done = done.float()
+            done_no_max = done_no_max.float()
             episode_reward += reward
 
-            if self.log_success:
-                episode_success = max(episode_success, extra["success"])
-
-            self.replay_buffer.add(obs, action, reward, next_obs, done, done_no_max)
+            self.replay_buffer.add_batch(
+                obs.detach().cpu().numpy(),
+                action.detach().cpu().numpy(),
+                reward.detach().cpu().numpy().reshape(-1, 1),
+                next_obs.detach().cpu().numpy(),
+                done.detach().cpu().numpy().reshape(-1, 1),
+                done_no_max.detach().cpu().numpy().reshape(-1, 1),
+            )
 
             obs = next_obs
-            self.step += 1
+            self.step += self.num_envs
 
         self.agent.save(self.work_dir, self.step)
 

@@ -10,16 +10,14 @@ experiment: sac
 agent_name: sac
 
 device: cuda
-seed: 1
+seed: 17
+num_envs: 10
 
 # training
 num_train_steps: 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 5000
-
-# evaluation
-eval_frequency: 100000000
-num_eval_episodes: 10
+num_gradient_update: 1
 
 # unsupervise
 num_unsup_steps: 10000
