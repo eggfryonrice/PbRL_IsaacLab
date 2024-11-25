@@ -14,6 +14,7 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.sim import SimulationCfg
 from omni.isaac.lab.terrains import TerrainImporterCfg
 from omni.isaac.lab.utils import configclass
+from omni.isaac.lab.sensors import CameraCfg
 from gymnasium.spaces import Box
 
 from .locomotion_env import LocomotionEnv
@@ -51,11 +52,27 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
 
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=10, env_spacing=8.0, replicate_physics=True
+        num_envs=10, env_spacing=32.0, replicate_physics=True
     )
 
     # robot
     robot: ArticulationCfg = WALKER2D_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+
+    camera = CameraCfg(
+        prim_path="/World/envs/env_.*/Robot/constraint/slider1/camera",
+        height=300,
+        width=300,
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0,
+            focus_distance=400.0,
+            horizontal_aperture=20.955,
+            clipping_range=(0.1, 1.0e5),
+        ),
+        offset=CameraCfg.OffsetCfg(
+            pos=(0.0, -6.0, -1.5), rot=(0.785, -0.785, 0.0, 0.0), convention="ros"
+        ),
+    )
 
     joint_gears: list = [
         100.0000,  # thigh_right

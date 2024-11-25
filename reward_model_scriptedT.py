@@ -215,12 +215,6 @@ class RewardModel:
                 self.inputs[-1] = np.concatenate([self.inputs[-1], flat_input])
                 self.targets[-1] = np.concatenate([self.targets[-1], flat_target])
 
-    def add_data_batch(self, obses, rewards):
-        num_env = obses.shape[0]
-        for index in range(num_env):
-            self.inputs.append(obses[index])
-            self.targets.append(rewards[index])
-
     def get_rank_probability(self, x_1, x_2):
         # get probability x_1 > x_2
         probs = []

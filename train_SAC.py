@@ -154,7 +154,7 @@ class Workspace(object):
                     K=self.cfg.topK,
                 )
 
-            next_obs, reward, done, done_no_max, _ = self.env.step(action)
+            next_obs, reward, done, done_no_max, _, _ = self.env.step(action)
             done = done.float()
             done_no_max = done_no_max.float()
             episode_reward += reward

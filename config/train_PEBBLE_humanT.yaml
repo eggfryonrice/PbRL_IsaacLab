@@ -1,0 +1,63 @@
+defaults:
+  - _self_
+  - sac
+
+# env
+env: walker2d
+gradient_update: 1
+
+# Basic setup
+experiment: PEBBLE
+agent_name: sac
+
+device: cuda
+seed: 17
+num_envs: 10
+
+# training
+num_train_steps: 1e5 #5e5
+replay_buffer_capacity: ${num_train_steps}
+num_seed_steps: 10000
+num_gradient_update: 1
+
+# evaluation
+eval_frequency: 100000000
+num_eval_episodes: 10
+
+# unsupervise
+num_unsup_steps: 20000
+topK: 5
+reset_update: 100
+
+# reward learning
+max_feedback: 300
+reward_batch: 15
+segment: 40
+activation: tanh
+num_interact: 10000 # how often we label preferences
+reward_lr: 0.0003
+reward_update: 50
+feed_type: 1
+ensemble_size: 3
+large_batch: 10
+label_margin: 0.0
+teacher_beta: -1
+teacher_gamma: 1
+teacher_eps_mistake: 0
+teacher_eps_skip: 0
+teacher_eps_equal: 0.1
+
+reward_schedule: 0
+
+# logger
+log_frequency: 10000
+log_save_tb: true
+
+save_model: true
+
+# hydra configuration
+hydra:
+  job:
+    name: ${env}
+  run:
+    dir: ./exp/${env}/pebble_humanT/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_lr${agent.actor_lr}/teacher_b${teacher_beta}_g${teacher_gamma}_m${teacher_eps_mistake}_s${teacher_eps_skip}_e${teacher_eps_equal}/label_smooth_${label_margin}/schedule_${reward_schedule}/${experiment}_init${num_seed_steps}_unsup${num_unsup_steps}_inter${num_interact}_maxfeed${max_feedback}_seg${segment}_act${activation}_Rlr${reward_lr}_Rbatch${reward_batch}_Rupdate${reward_update}_en${ensemble_size}_sample${feed_type}_large_batch${large_batch}_seed${seed}
