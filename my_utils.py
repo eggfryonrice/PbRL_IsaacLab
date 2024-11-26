@@ -145,7 +145,7 @@ def label_preference(
     Play two videos side by side and return user preference:
     - Return 0 if the left video is clicked
     - Return 1 if the right video is clicked
-    - Return -1 if the bottom block is clicked
+    - Return -1 if the no preference area is clicked
     """
     fig, ax = plt.subplots(
         2,
@@ -165,27 +165,20 @@ def label_preference(
     ax[0, 0].axis("off")
     ax[0, 1].axis("off")
 
-    # Create a single clickable block at the bottom
-    ax[1, 0].axis("off")
-    ax[1, 0].set_facecolor("lightgray")
+    # Combine the bottom area into a single "no preference" clickable block
+    for i in [0, 1]:
+        ax[1, i].axis("off")
+        ax[1, i].set_facecolor("lightgray")
+
+    # Add a centered label for the no preference area
     ax[1, 0].text(
+        1.0,  # Centered across both columns
         0.5,
-        0.5,
-        "no preference",
+        "No Preference",
         fontsize=14,
         ha="center",
         va="center",
-        color="black",
-    )
-    ax[1, 1].axis("off")
-    ax[1, 1].set_facecolor("lightgray")
-    ax[1, 1].text(
-        0.5,
-        0.5,
-        "no preference",
-        fontsize=14,
-        ha="center",
-        va="center",
+        transform=ax[1, 0].transAxes,
         color="black",
     )
 

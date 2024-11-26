@@ -22,7 +22,7 @@ class MultiEnvWrapper(gym.Wrapper):
         )
 
     def reset(self, idx=None, **kwargs):
-        if idx == None:
+        if idx is None:
             raw_obs, _ = self.env.reset(**kwargs)
             return self._process_obs(raw_obs)
         else:

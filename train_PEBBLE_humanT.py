@@ -126,13 +126,9 @@ class Workspace(object):
 
     def run(self):
         episode = 0
-        model_episode_reward = torch.zeros(
-            self.cfg.num_envs, dtype=torch.float32, device=self.device
-        )
-        true_episode_reward = torch.zeros(
-            self.cfg.num_envs, dtype=torch.float32, device=self.device
-        )
-        done = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
+        model_episode_reward = np.zeros(self.num_envs)
+        true_episode_reward = np.zeros(self.num_envs)
+        episode_done = np.zeros(self.num_envs)
 
         obs, pic = self.env.reset()
         obs_np = obs.detach().cpu().numpy()
@@ -149,17 +145,19 @@ class Workspace(object):
 
         while self.step < self.cfg.num_train_steps:
             # reset done environment
-            done_idx = torch.nonzero(done, as_tuple=True)[0]
-            if done_idx.numel() != 0:
-
+            done_idx = np.where(episode_done)[0]
+            if done_idx.size != 0:
+                # print(
+                #     f"Step {self.step}: Allocated: {torch.cuda.memory_allocated() / 1e6} MB, Reserved: {torch.cuda.memory_reserved() / 1e6} MB"
+                # )
                 self.logger.log(
                     "train/episode_reward",
-                    true_episode_reward[done_idx].sum().item() / done_idx.numel(),
+                    true_episode_reward[done_idx].sum().item() / done_idx.size,
                     self.step,
                 )
                 self.logger.log(
                     "train/model_episode_reward",
-                    model_episode_reward[done_idx].sum().item() / done_idx.numel(),
+                    model_episode_reward[done_idx].sum().item() / done_idx.size,
                     self.step,
                 )
                 self.logger.log("train/total_feedback", self.total_feedback, self.step)
@@ -179,11 +177,9 @@ class Workspace(object):
                 obs_np = obs.detach().cpu().numpy()
                 pic_np = pic.detach().cpu().numpy()
                 model_episode_reward[done_idx] = 0
-                avg_train_true_return.extend(
-                    true_episode_reward[done_idx].detach().cpu().numpy()
-                )
+                avg_train_true_return.extend(true_episode_reward[done_idx])
                 true_episode_reward[done_idx] = 0
-                episode += done_idx.numel()
+                episode += done_idx.size
 
                 self.logger.log("train/episode", episode, self.step)
                 self.logger.dump(self.step, save=(self.step > self.cfg.num_seed_steps))
@@ -294,18 +290,13 @@ class Workspace(object):
                 torch.cat([obs, action], axis=-1)
             ).squeeze(-1)
 
-            # allow infinite bootstrap
-            done = done.float()
-            done_no_max = done_no_max.float()
-            model_episode_reward += reward_hat
-            true_episode_reward += reward
-
             # adding data to the reward training data
             obs_np = obs.detach().cpu().numpy()
             reward_np = reward.detach().cpu().numpy()
+            reward_hat_np = reward_hat.detach().cpu().numpy()
             next_obs_np = next_obs.detach().cpu().numpy()
-            done_np = done.detach().cpu().numpy()
-            done_no_max_np = done_no_max.detach().cpu().numpy()
+            done_np = done.float().detach().cpu().numpy()
+            done_no_max_np = done_no_max.float().detach().cpu().numpy()
             pic_np = pic.detach().cpu().numpy()
             # adding only the first environment's data to reward model
             self.replay_buffer.add_batch(
@@ -317,6 +308,10 @@ class Workspace(object):
                 done_no_max_np.reshape(-1, 1),
             )
 
+            episode_done = done_np
+            model_episode_reward += reward_hat_np
+            true_episode_reward += reward_np
+
             obs = next_obs
             self.step += self.num_envs
             interact_count += self.num_envs
@@ -325,15 +320,28 @@ class Workspace(object):
         self.reward_model.save(self.work_dir, self.step)
 
 
+import cProfile
+import pstats
+
+
 @hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
 def main(cfg):
+    profiler = cProfile.Profile()
+    profiler.enable()
+
     workspace = Workspace(cfg)
     workspace.run()
 
+    profiler.disable()
 
-import cProfile
+    # Save to a file
+    with open("profile_results.txt", "w") as f:
+        stats = pstats.Stats(profiler, stream=f)
+        stats.strip_dirs()
+        stats.sort_stats("cumtime")
+        stats.print_stats()
+
 
 if __name__ == "__main__":
-    cProfile.run("main()", sort="cumtime")
-    # main()
+    main()
     simulation_app.close()

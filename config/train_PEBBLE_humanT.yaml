@@ -15,7 +15,7 @@ seed: 17
 num_envs: 10
 
 # training
-num_train_steps: 1e5 #5e5
+num_train_steps: 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
@@ -30,16 +30,16 @@ topK: 5
 reset_update: 100
 
 # reward learning
-max_feedback: 300
-reward_batch: 15
-segment: 40
+max_feedback: 400
+reward_batch: 20
+segment: 20
 activation: tanh
 num_interact: 10000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
 feed_type: 1
 ensemble_size: 3
-large_batch: 10
+large_batch: 50 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
 label_margin: 0.0
 teacher_beta: -1
 teacher_gamma: 1
