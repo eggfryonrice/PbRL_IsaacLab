@@ -302,35 +302,48 @@ class RewardModel:
         return np.array(label)
 
     def uniform_sampling(self):
-        # get queries
-        sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(mb_size=self.mb_size)
+        labels = []
+        sa1s = []
+        sa2s = []
+        while len(labels) < self.mb_size:
+            sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(mb_size=1)
 
-        # get labels
-        labels = self.get_label(bi1, bi2, s1, s2)
+            sa1, bi1, s1 = sa1[0], bi1[0], s1[0]
+            sa2, bi2, s2 = sa2[0], bi2[0], s2[0]
 
-        if len(labels) > 0:
-            self.put_queries(sa1, sa2, labels)
+            frames1 = self.get_frame(bi1, s1)
+            frames2 = self.get_frame(bi2, s2)
+            label = my_utils.label_preference(frames1, frames2, self.dt)
+            if label != None:
+                labels.append([label])
+                sa1s.append(sa1)
+                sa2s.append(sa2)
+
+        self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
         return len(labels)
 
     def disagreement_sampling(self):
+        labels = []
+        sa1s = []
+        sa2s = []
+        while len(labels) < self.mb_size:
+            sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(mb_size=self.large_batch)
 
-        # get queries
-        sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(
-            mb_size=self.mb_size * self.large_batch
-        )
+            _, disagree = self.get_rank_probability(sa1, sa2)
+            top_index = (-disagree).argsort()[0]
+            sa1, bi1, s1 = sa1[top_index], bi1[top_index], s1[top_index]
+            sa2, bi2, s2 = sa2[top_index], bi2[top_index], s2[top_index]
 
-        # get final queries based on uncertainty
-        _, disagree = self.get_rank_probability(sa1, sa2)
-        top_k_index = (-disagree).argsort()[: self.mb_size]
-        sa1, bi1, s1 = sa1[top_k_index], bi1[top_k_index], s1[top_k_index]
-        sa2, bi2, s2 = sa2[top_k_index], bi2[top_k_index], s2[top_k_index]
+            frames1 = self.get_frame(bi1, s1)
+            frames2 = self.get_frame(bi2, s2)
+            label = my_utils.label_preference(frames1, frames2, self.dt)
+            if label != None:
+                labels.append([label])
+                sa1s.append(sa1)
+                sa2s.append(sa2)
 
-        # get labels
-        # put skip later
-        labels = self.get_label(bi1, bi2, s1, s2)
-        if len(labels) > 0:
-            self.put_queries(sa1, sa2, labels)
+        self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
         return len(labels)
 

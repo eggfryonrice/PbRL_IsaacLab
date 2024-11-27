@@ -146,6 +146,7 @@ def label_preference(
     - Return 0 if the left video is clicked
     - Return 1 if the right video is clicked
     - Return -1 if the no preference area is clicked
+    - Return None if the skip area is clicked
     """
     fig, ax = plt.subplots(
         2,
@@ -160,25 +161,28 @@ def label_preference(
     # Show the videos
     im1 = ax[0, 0].imshow(frames1[0])
     im2 = ax[0, 1].imshow(frames2[0])
-    ax[0, 0].set_title("Left Video", fontsize=12, pad=10)
-    ax[0, 1].set_title("Right Video", fontsize=12, pad=10)
+    ax[0, 0].set_title("query 0", fontsize=12, pad=10)
+    ax[0, 1].set_title("query 1", fontsize=12, pad=10)
     ax[0, 0].axis("off")
     ax[0, 1].axis("off")
 
-    # Combine the bottom area into a single "no preference" clickable block
-    for i in [0, 1]:
-        ax[1, i].axis("off")
-        ax[1, i].set_facecolor("lightgray")
-
-    # Add a centered label for the no preference area
+    # Bottom-left: "Skip"
+    ax[1, 0].axis("off")
+    ax[1, 0].set_facecolor("lightgray")
     ax[1, 0].text(
-        1.0,  # Centered across both columns
+        0.5, 0.5, "Skip", fontsize=14, ha="center", va="center", color="black"
+    )
+
+    # Bottom-right: "No Preference"
+    ax[1, 1].axis("off")
+    ax[1, 1].set_facecolor("lightgray")
+    ax[1, 1].text(
+        0.5,
         0.5,
         "No Preference",
         fontsize=14,
         ha="center",
         va="center",
-        transform=ax[1, 0].transAxes,
         color="black",
     )
 
@@ -190,12 +194,19 @@ def label_preference(
     def on_click(event):
         if event.inaxes == ax[0, 0]:
             clicked_result["choice"] = 0
+            print("choosed query 0 ", end="\r", flush=True)
             plt.close(fig)
         elif event.inaxes == ax[0, 1]:
             clicked_result["choice"] = 1
+            print("choosed query 1 ", end="\r", flush=True)
             plt.close(fig)
-        elif event.inaxes in [ax[1, 0], ax[1, 1]]:
+        elif event.inaxes == ax[1, 0]:  # Skip area
+            clicked_result["choice"] = None
+            print("skipped this one", end="\r", flush=True)
+            plt.close(fig)
+        elif event.inaxes == ax[1, 1]:  # No preference area
             clicked_result["choice"] = -1
+            print("tied            ", end="\r", flush=True)
             plt.close(fig)
 
     fig.canvas.mpl_connect("button_press_event", on_click)

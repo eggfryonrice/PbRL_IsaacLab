@@ -34,7 +34,7 @@ max_feedback: 400
 reward_batch: 20
 segment: 20
 activation: tanh
-num_interact: 10000 # how often we label preferences
+num_interact: 20000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
 feed_type: 1
