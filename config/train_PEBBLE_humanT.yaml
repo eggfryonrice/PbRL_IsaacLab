@@ -3,7 +3,7 @@ defaults:
   - sac
 
 # env
-env: walker2d
+env: walker2d_camera
 gradient_update: 1
 
 # Basic setup

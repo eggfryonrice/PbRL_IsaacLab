@@ -9,6 +9,7 @@ import torch
 
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
+from omni.isaac.lab.sensors import Camera
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
 
 
@@ -16,7 +17,7 @@ def normalize_angle(x):
     return torch.atan2(torch.sin(x), torch.cos(x))
 
 
-class LocomotionEnv(DirectRLEnv):
+class LocomotionEnvCamera(DirectRLEnv):
     cfg: DirectRLEnvCfg
 
     def __init__(self, cfg: DirectRLEnvCfg, render_mode: str | None = None, **kwargs):
@@ -50,6 +51,7 @@ class LocomotionEnv(DirectRLEnv):
 
     def _setup_scene(self):
         self.robot = Articulation(self.cfg.robot)
+        self.camera = Camera(self.cfg.camera)
         # add ground plane
         self.cfg.terrain.num_envs = self.scene.cfg.num_envs
         self.cfg.terrain.env_spacing = self.scene.cfg.env_spacing
@@ -59,6 +61,7 @@ class LocomotionEnv(DirectRLEnv):
         self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
         # add articultion to scene
         self.scene.articulations["robot"] = self.robot
+        self.scene.sensors["camera"] = self.camera
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
@@ -86,6 +89,8 @@ class LocomotionEnv(DirectRLEnv):
             self.body_rotation[:, self._body_dof_idx]
         )
 
+        self.pictures = self.camera.data.output["rgb"]
+
     def _get_observations(self) -> dict:
         obs = torch.cat(
             (
@@ -98,7 +103,7 @@ class LocomotionEnv(DirectRLEnv):
             ),
             dim=-1,
         )
-        observations = {"policy": obs}
+        observations = {"policy": obs, "picture": self.pictures}
         return observations
 
     def _get_rewards(self) -> torch.Tensor:

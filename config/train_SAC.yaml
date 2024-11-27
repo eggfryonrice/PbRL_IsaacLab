@@ -16,11 +16,11 @@ num_envs: 10
 # training
 num_train_steps: 5e5
 replay_buffer_capacity: ${num_train_steps}
-num_seed_steps: 5000
+num_seed_steps: 10000
 num_gradient_update: 1
 
 # unsupervise
-num_unsup_steps: 10000
+num_unsup_steps: 20000
 topK: 5
 reset_update: 100
 
@@ -39,4 +39,4 @@ hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_B${agent.batch_size}_tau${agent.critic_tau}/${experiment}_unsup${num_unsup_steps}_topk${topK}_${experiment}_lr${agent.actor_lr}_temp${agent.init_temperature}_seed${seed}
+    dir: ./exp/${env}/sac/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_B${agent.batch_size}_tau${agent.critic_tau}/${experiment}_unsup${num_unsup_steps}_topk${topK}_${experiment}_lr${agent.actor_lr}_temp${agent.init_temperature}_seed${seed}

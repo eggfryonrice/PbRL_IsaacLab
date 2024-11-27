@@ -241,6 +241,7 @@ class Workspace(object):
 
                 # reset interact_count
                 interact_count = 0
+
             elif self.step > self.cfg.num_seed_steps + self.cfg.num_unsup_steps:
                 # update reward function
                 if self.total_feedback < self.cfg.max_feedback:
@@ -291,14 +292,13 @@ class Workspace(object):
             ).squeeze(-1)
 
             # adding data to the reward training data
-            obs_np = obs.detach().cpu().numpy()
+            next_obs_np = next_obs.detach().cpu().numpy()
             reward_np = reward.detach().cpu().numpy()
             reward_hat_np = reward_hat.detach().cpu().numpy()
-            next_obs_np = next_obs.detach().cpu().numpy()
             done_np = done.float().detach().cpu().numpy()
             done_no_max_np = done_no_max.float().detach().cpu().numpy()
             pic_np = pic.detach().cpu().numpy()
-            # adding only the first environment's data to reward model
+
             self.replay_buffer.add_batch(
                 obs_np,
                 action_np,
@@ -313,6 +313,7 @@ class Workspace(object):
             true_episode_reward += reward_np
 
             obs = next_obs
+            obs_np = next_obs_np
             self.step += self.num_envs
             interact_count += self.num_envs
 

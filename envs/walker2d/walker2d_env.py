@@ -18,6 +18,7 @@ from omni.isaac.lab.sensors import CameraCfg
 from gymnasium.spaces import Box
 
 from .locomotion_env import LocomotionEnv
+from .locomotion_env_camera import LocomotionEnvCamera
 
 
 @configclass
@@ -94,6 +95,13 @@ class Walker2dEnvCfg(DirectRLEnvCfg):
 
 
 class Walker2dEnv(LocomotionEnv):
+    cfg: Walker2dEnvCfg
+
+    def __init__(self, cfg: Walker2dEnvCfg, render_mode: str | None = None, **kwargs):
+        super().__init__(cfg, render_mode, **kwargs)
+
+
+class Walker2dEnvCamera(LocomotionEnvCamera):
     cfg: Walker2dEnvCfg
 
     def __init__(self, cfg: Walker2dEnvCfg, render_mode: str | None = None, **kwargs):

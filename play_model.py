@@ -49,7 +49,7 @@ class Workspace(object):
             render_mode="rgb_array",
         )
         if env.viewport_camera_controller != None:
-            env.viewport_camera_controller.update_view_location([-6, -3, 3], [2, 0, 2])
+            env.viewport_camera_controller.update_view_location([-6, -6, 3], [2, 0, 2])
         if args_cli.video:
             video_kwargs = {
                 "video_folder": os.path.join(self.work_dir, "videos"),
@@ -73,7 +73,9 @@ class Workspace(object):
 
     def run(self):
         episode_done = np.zeros(self.num_envs)
-        obs, _ = self.env.reset()
+        obs = self.env.reset()
+        if isinstance(obs, tuple):
+            obs = obs[0]
         steps = 0
 
         while steps < 1000:
@@ -85,7 +87,9 @@ class Workspace(object):
             with my_utils.eval_mode(self.agent):
                 action = self.agent.act(obs, sample=False)
 
-            next_obs, _, done, _, _, _ = self.env.step(action)
+            step_result = self.env.step(action)
+
+            next_obs, done = step_result[0], step_result[2]
 
             done_np = done.float().detach().cpu().numpy()
 
@@ -96,7 +100,9 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
+@hydra.main(
+    config_path="config", config_name="train_PEBBLE_scriptedT", version_base="1.1"
+)
 def main(cfg):
 
     workspace = Workspace(cfg)

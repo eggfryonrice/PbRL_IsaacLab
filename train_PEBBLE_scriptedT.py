@@ -153,42 +153,54 @@ class Workspace(object):
 
     def run(self):
         episode = 0
-        episode_reward = torch.zeros(
-            self.cfg.num_envs, dtype=torch.float32, device=self.device
-        )
-        true_episode_reward = torch.zeros(
-            self.cfg.num_envs, dtype=torch.float32, device=self.device
-        )
-        done = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
+        model_episode_reward = np.zeros(self.num_envs)
+        true_episode_reward = np.zeros(self.num_envs)
+        episode_done = np.zeros(self.num_envs)
+
         obs = self.env.reset()
+        obs_np = obs.detach().cpu().numpy()
 
         avg_train_true_return = deque([], maxlen=10)
+
+        obs_query = [[] for _ in range(self.num_envs)]
+        action_query = [[] for _ in range(self.num_envs)]
+        reward_query = [[] for _ in range(self.num_envs)]
 
         interact_count = 0
         while self.step < self.cfg.num_train_steps:
             # reset done environment
-            done_idx = torch.nonzero(done, as_tuple=True)[0]
-            if done_idx.numel() != 0:
+            done_idx = np.where(episode_done)[0]
+            if done_idx.size != 0:
 
                 self.logger.log(
                     "train/episode_reward",
-                    true_episode_reward[done_idx].sum().item() / done_idx.numel(),
+                    true_episode_reward[done_idx].sum().item() / done_idx.size,
                     self.step,
                 )
                 self.logger.log(
                     "train/model_episode_reward",
-                    true_episode_reward[done_idx].sum().item() / done_idx.numel(),
+                    true_episode_reward[done_idx].sum().item() / done_idx.size,
                     self.step,
                 )
                 self.logger.log("train/total_feedback", self.total_feedback, self.step)
 
+                for i in done_idx:
+                    self.reward_model.add_data(
+                        np.array(obs_query[i]),
+                        np.array(action_query[i]),
+                        np.array(reward_query[i]).reshape(-1, 1),
+                    )
+                    obs_query[i] = []
+                    action_query[i] = []
+                    reward_query[i] = []
+
                 obs[done_idx] = self.env.reset(done_idx)
-                episode_reward[done_idx] = 0
-                avg_train_true_return.extend(
-                    true_episode_reward[done_idx].detach().cpu().numpy()
-                )
+                obs_np = obs.detach().cpu().numpy()
+                model_episode_reward[done_idx] = 0
+                avg_train_true_return.extend(true_episode_reward[done_idx])
                 true_episode_reward[done_idx] = 0
-                episode += done_idx.numel()
+                episode += done_idx.size
+
                 self.logger.log("train/episode", episode, self.step)
                 self.logger.dump(self.step, save=(self.step > self.cfg.num_seed_steps))
 
@@ -204,6 +216,7 @@ class Workspace(object):
             else:
                 with my_utils.eval_mode(self.agent):
                     action = self.agent.act(obs, sample=True)
+            action_np = action.detach().cpu().numpy()
 
             # run training update
             if self.step == (self.cfg.num_seed_steps + self.cfg.num_unsup_steps):
@@ -221,13 +234,6 @@ class Workspace(object):
                 else:
                     frac = 1
                 self.reward_model.change_batch(frac)
-
-                # update margin --> not necessary / will be updated soon
-                new_margin = np.mean(avg_train_true_return) * (
-                    self.cfg.segment / self.env.unwrapped.max_episode_length
-                )
-                self.reward_model.set_teacher_thres_skip(new_margin)
-                self.reward_model.set_teacher_thres_equal(new_margin)
 
                 # first learn reward
                 self.learn_reward(first_flag=1)
@@ -249,6 +255,7 @@ class Workspace(object):
 
                 # reset interact_count
                 interact_count = 0
+
             elif self.step > self.cfg.num_seed_steps + self.cfg.num_unsup_steps:
                 # update reward function
                 if self.total_feedback < self.cfg.max_feedback:
@@ -267,17 +274,6 @@ class Workspace(object):
                         else:
                             frac = 1
                         self.reward_model.change_batch(frac)
-
-                        # update margin --> not necessary / will be updated soon
-                        new_margin = np.mean(avg_train_true_return) * (
-                            self.cfg.segment / self.env.unwrapped.max_episode_length
-                        )
-                        self.reward_model.set_teacher_thres_skip(
-                            new_margin * self.cfg.teacher_eps_skip
-                        )
-                        self.reward_model.set_teacher_thres_equal(
-                            new_margin * self.cfg.teacher_eps_equal
-                        )
 
                         # corner case: new total feed > max feed
                         if (
@@ -304,28 +300,18 @@ class Workspace(object):
                     K=self.cfg.topK,
                 )
 
-            next_obs, reward, done, done_no_max, _, _ = self.env.step(action)
+            next_obs, reward, done, done_no_max, _ = self.env.step(action)
             reward_hat = self.reward_model.r_hat_tensor(
                 torch.cat([obs, action], axis=-1)
             ).squeeze(-1)
 
-            # allow infinite bootstrap
-            done = done.float()
-            done_no_max = done_no_max.float()
-            episode_reward += reward_hat
-            true_episode_reward += reward
-
             # adding data to the reward training data
-            obs_np = obs.detach().cpu().numpy()
-            action_np = action.detach().cpu().numpy()
-            reward_np = reward.detach().cpu().numpy()
             next_obs_np = next_obs.detach().cpu().numpy()
+            reward_np = reward.detach().cpu().numpy()
+            reward_hat_np = reward_hat.detach().cpu().numpy()
             done_np = done.detach().cpu().numpy()
             done_no_max_np = done_no_max.detach().cpu().numpy()
-            # adding only the first environment's data to reward model
-            self.reward_model.add_data(
-                obs_np[0], action_np[0], reward_np[0], done_np[0]
-            )
+
             self.replay_buffer.add_batch(
                 obs_np,
                 action_np,
@@ -335,25 +321,51 @@ class Workspace(object):
                 done_no_max_np.reshape(-1, 1),
             )
 
+            episode_done = done_np
+            model_episode_reward += reward_hat_np
+            true_episode_reward += reward_np
+
+            # update obs_query, action_query to be used to add in reward_model
+            for i in range(self.num_envs):
+                obs_query[i].append(obs_np[i])
+                action_query[i].append(action_np[i])
+                reward_query[i].append(reward_np[i])
+
             obs = next_obs
+            obs_np = next_obs_np
             self.step += self.num_envs
-            interact_count += 1
+            interact_count += self.num_envs
 
         self.agent.save(self.work_dir, self.step)
         self.reward_model.save(self.work_dir, self.step)
+
+
+import cProfile
+import pstats
 
 
 @hydra.main(
     config_path="config", config_name="train_PEBBLE_scriptedT", version_base="1.1"
 )
 def main(cfg):
+    profiler = cProfile.Profile()
+    profiler.enable()
+
     workspace = Workspace(cfg)
     workspace.run()
+
+    profiler.disable()
+
+    # Save to a file
+    with open("profile_results.txt", "w") as f:
+        stats = pstats.Stats(profiler, stream=f)
+        stats.strip_dirs()
+        stats.sort_stats("cumtime")
+        stats.print_stats()
 
 
 import cProfile
 
 if __name__ == "__main__":
-    cProfile.run("main()", sort="cumtime")
-    # main()
+    main()
     simulation_app.close()
