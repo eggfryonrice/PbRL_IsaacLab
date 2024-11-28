@@ -5,7 +5,9 @@ import torch
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
 
-    def __init__(self, obs_shape, action_shape, capacity, device, window=1):
+    def __init__(
+        self, obs_shape, action_shape, capacity, device, window=1, alpha=1, beta=0
+    ):
         self.capacity = capacity
         self.device = device
 
@@ -16,6 +18,9 @@ class ReplayBuffer(object):
         self.next_obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
+        self.rewards_env = np.empty((capacity, 1), dtype=np.float32)
+        self.rewards_model = np.empty((capacity, 1), dtype=np.float32)
+        self.alpha, self.beta = alpha, beta
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones_no_max = np.empty((capacity, 1), dtype=np.float32)
         self.window = window
@@ -77,6 +82,91 @@ class ReplayBuffer(object):
             np.copyto(self.not_dones_no_max[self.idx : next_index], done_no_max <= 0)
             self.idx = next_index
 
+    def add_combined_reward(
+        self, obs, action, reward_env, reward_model, next_obs, done, done_no_max
+    ):
+        """
+        this function handle case when two rewards should be stored
+        """
+        np.copyto(self.obses[self.idx], obs)
+        np.copyto(self.actions[self.idx], action)
+        np.copyto(self.rewards_env[self.idx], reward_env)
+        np.copyto(self.rewards_model[self.idx], reward_model)
+        np.copyto(
+            self.rewards[self.idx], self.alpha * reward_env + self.beta * reward_model
+        )
+        np.copyto(self.next_obses[self.idx], next_obs)
+        np.copyto(self.not_dones[self.idx], not done)
+        np.copyto(self.not_dones_no_max[self.idx], not done_no_max)
+
+        self.idx = (self.idx + 1) % self.capacity
+        self.full = self.full or self.idx == 0
+
+    def add_combined_batch(
+        self, obs, action, reward_env, reward_model, next_obs, done, done_no_max
+    ):
+        """
+        this function handle case when two rewards should be stored
+        """
+        next_index = self.idx + self.window
+        if next_index >= self.capacity:
+            self.full = True
+            maximum_index = self.capacity - self.idx
+            np.copyto(self.obses[self.idx : self.capacity], obs[:maximum_index])
+            np.copyto(self.actions[self.idx : self.capacity], action[:maximum_index])
+            np.copyto(
+                self.rewards_env[self.idx : self.capacity], reward_env[:maximum_index]
+            )
+            np.copyto(
+                self.rewards_model[self.idx : self.capacity],
+                reward_model[:maximum_index],
+            )
+            np.copyto(
+                self.rewards[self.idx : self.capacity],
+                self.alpha * reward_env[:maximum_index]
+                + self.beta * reward_model[:maximum_index],
+            )
+            np.copyto(
+                self.next_obses[self.idx : self.capacity], next_obs[:maximum_index]
+            )
+            np.copyto(
+                self.not_dones[self.idx : self.capacity], done[:maximum_index] <= 0
+            )
+            np.copyto(
+                self.not_dones_no_max[self.idx : self.capacity],
+                done_no_max[:maximum_index] <= 0,
+            )
+            remain = self.window - (maximum_index)
+            if remain > 0:
+                np.copyto(self.obses[0:remain], obs[maximum_index:])
+                np.copyto(self.actions[0:remain], action[maximum_index:])
+                np.copyto(self.rewards_env[0:remain], reward_env[maximum_index:])
+                np.copyto(self.rewards_model[0:remain], reward_model[maximum_index:])
+                np.copyto(
+                    self.rewards[0:remain],
+                    self.alpha * reward_env[maximum_index:]
+                    + self.beta * reward_model[maximum_index:],
+                )
+                np.copyto(self.next_obses[0:remain], next_obs[maximum_index:])
+                np.copyto(self.not_dones[0:remain], done[maximum_index:] <= 0)
+                np.copyto(
+                    self.not_dones_no_max[0:remain], done_no_max[maximum_index:] <= 0
+                )
+            self.idx = remain
+        else:
+            np.copyto(self.obses[self.idx : next_index], obs)
+            np.copyto(self.actions[self.idx : next_index], action)
+            np.copyto(self.rewards_env[self.idx : next_index], reward_env)
+            np.copyto(self.rewards_model[self.idx : next_index], reward_model)
+            np.copyto(
+                self.rewards[self.idx : next_index],
+                self.alpha * reward_env + self.beta * reward_model,
+            )
+            np.copyto(self.next_obses[self.idx : next_index], next_obs)
+            np.copyto(self.not_dones[self.idx : next_index], done <= 0)
+            np.copyto(self.not_dones_no_max[self.idx : next_index], done_no_max <= 0)
+            self.idx = next_index
+
     def relabel_with_predictor(self, predictor):
         batch_size = 200
         total_iter = int(self.idx / batch_size)
@@ -95,6 +185,27 @@ class ReplayBuffer(object):
 
             pred_reward = predictor.r_hat_batch(inputs)
             self.rewards[index * batch_size : last_index] = pred_reward
+
+    def relabel_combined_with_predictor(self, predictor):
+        batch_size = 200
+        total_iter = int(self.idx / batch_size)
+
+        if self.idx > batch_size * total_iter:
+            total_iter += 1
+
+        for index in range(total_iter):
+            last_index = (index + 1) * batch_size
+            if (index + 1) * batch_size > self.idx:
+                last_index = self.idx
+
+            obses = self.obses[index * batch_size : last_index]
+            actions = self.actions[index * batch_size : last_index]
+            inputs = np.concatenate([obses, actions], axis=-1)
+
+            pred_reward = predictor.r_hat_batch(inputs)
+            self.rewards_model[index * batch_size : last_index] = pred_reward
+
+        self.rewards = self.alpha * self.rewards_env + self.beta * self.rewards_model
 
     def sample(self, batch_size):
         idxs = np.random.randint(

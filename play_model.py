@@ -99,7 +99,7 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
+@hydra.main(config_path="config", config_name="finetune_PEBBLE", version_base="1.1")
 def main(cfg):
 
     workspace = Workspace(cfg)

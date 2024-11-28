@@ -71,6 +71,8 @@ class Workspace(object):
             capacity=int(cfg.replay_buffer_capacity),
             device=self.device,
             window=self.num_envs,
+            alpha=cfg.reward_alpha,
+            beta=cfg.reward_beta,
         )
 
         # for logging
@@ -253,7 +255,9 @@ class Workspace(object):
                             )
 
                         self.learn_reward()
-                        self.replay_buffer.relabel_with_predictor(self.reward_model)
+                        self.replay_buffer.relabel_combined_with_predictor(
+                            self.reward_model
+                        )
                         interact_count = 0
 
                 self.agent.update(self.replay_buffer, self.logger, self.step, 1)
@@ -271,9 +275,10 @@ class Workspace(object):
             done_no_max_np = done_no_max.float().detach().cpu().numpy()
             pic_np = pic.detach().cpu().numpy()
 
-            self.replay_buffer.add_batch(
+            self.replay_buffer.add_combined_batch(
                 obs_np,
                 action_np,
+                reward_np.reshape(-1, 1),
                 reward_hat_np.reshape(-1, 1),
                 next_obs_np,
                 done_np.reshape(-1, 1),

@@ -24,6 +24,10 @@ replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 30000
 num_gradient_update: 1
 
+# for finetuning, use alpha * env reward + beta * learned reward as reward
+reward_alpha: 1
+reward_beta: 1
+
 # evaluation
 eval_frequency: 100000000
 num_eval_episodes: 10
