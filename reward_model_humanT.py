@@ -42,6 +42,7 @@ class RewardModel:
         activation="tanh",
         capacity=5e5,
         large_batch=1,
+        near_range=10,
     ):
         self.video_path = video_path
         self.dt = dt
@@ -84,6 +85,8 @@ class RewardModel:
         self.best_label = []
         self.best_action = []
         self.large_batch = large_batch
+
+        self.near_range = near_range
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -255,6 +258,44 @@ class RewardModel:
 
         return sa1, sa2, batch_index_1, batch_index_2, starts1, starts2
 
+    def get_near_on_policy_queries(self, mb_size=20):
+        """
+        get latest queries
+        randomly sample queries form (max_len - near_range) to (max_len-1) th query
+        """
+        max_len = len(self.inputs)
+
+        if max_len < self.near_range:
+            batch_index_1 = np.random.choice(max_len, size=mb_size, replace=True)
+            sa1 = [self.inputs[i] for i in batch_index_1]
+            batch_index_2 = np.random.choice(max_len, size=mb_size, replace=True)
+            sa2 = [self.inputs[i] for i in batch_index_2]
+        else:
+            batch_index_1 = np.random.choice(
+                self.near_range, size=mb_size, replace=True
+            ) + (max_len - self.near_range)
+            sa1 = [self.inputs[i] for i in batch_index_1]
+            batch_index_2 = np.random.choice(
+                self.near_range, size=mb_size, replace=True
+            ) + (max_len - self.near_range)
+            sa2 = [self.inputs[i] for i in batch_index_2]
+
+        starts1 = np.array(
+            [np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1]
+        )
+        sa1 = np.array(
+            [arr[start : start + self.size_segment] for arr, start in zip(sa1, starts1)]
+        )
+
+        starts2 = np.array(
+            [np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2]
+        )
+        sa2 = np.array(
+            [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
+        )
+
+        return sa1, sa2, batch_index_1, batch_index_2, starts1, starts2
+
     def put_queries(self, sa1, sa2, labels):
         total_sample = sa1.shape[0]
         next_index = self.buffer_index + total_sample
@@ -329,6 +370,32 @@ class RewardModel:
         sa2s = []
         while len(labels) < self.mb_size:
             sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(mb_size=self.large_batch)
+
+            _, disagree = self.get_rank_probability(sa1, sa2)
+            top_index = (-disagree).argsort()[0]
+            sa1, bi1, s1 = sa1[top_index], bi1[top_index], s1[top_index]
+            sa2, bi2, s2 = sa2[top_index], bi2[top_index], s2[top_index]
+
+            frames1 = self.get_frame(bi1, s1)
+            frames2 = self.get_frame(bi2, s2)
+            label = my_utils.label_preference(frames1, frames2, self.dt)
+            if label != None:
+                labels.append([label])
+                sa1s.append(sa1)
+                sa2s.append(sa2)
+
+        self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
+
+        return len(labels)
+
+    def near_on_policy_disagreement_sampling(self):
+        labels = []
+        sa1s = []
+        sa2s = []
+        while len(labels) < self.mb_size:
+            sa1, sa2, bi1, bi2, s1, s2 = self.get_near_on_policy_queries(
+                mb_size=self.large_batch
+            )
 
             _, disagree = self.get_rank_probability(sa1, sa2)
             top_index = (-disagree).argsort()[0]

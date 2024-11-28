@@ -9,8 +9,7 @@ parser.add_argument(
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
 
-if args_cli.video:
-    args_cli.enable_cameras = True
+args_cli.enable_cameras = True
 
 sys.argv = [sys.argv[0]] + hydra_args
 app_launcher = AppLauncher(args_cli)
@@ -100,9 +99,7 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(
-    config_path="config", config_name="train_PEBBLE_scriptedT", version_base="1.1"
-)
+@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
 def main(cfg):
 
     workspace = Workspace(cfg)

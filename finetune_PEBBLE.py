@@ -63,6 +63,7 @@ class Workspace(object):
             float(self.env.action_space.high.max()),
         ]
         self.agent = hydra.utils.instantiate(cfg.agent)
+        self.agent.load(cfg.pretrained_model_dir, cfg.pretrained_model_step)
 
         self.replay_buffer = ReplayBuffer(
             obs_shape=self.env.observation_space.shape,
@@ -89,7 +90,6 @@ class Workspace(object):
             size_segment=cfg.segment,
             activation=cfg.activation,
             large_batch=cfg.large_batch,
-            near_range=cfg.near_range,
         )
 
     def learn_reward(self, first_flag=0):
@@ -104,10 +104,6 @@ class Workspace(object):
                 labeled_queries = self.reward_model.uniform_sampling()
             elif self.cfg.feed_type == 1:
                 labeled_queries = self.reward_model.disagreement_sampling()
-            elif self.cfg.feed_type == 2:
-                labeled_queries = (
-                    self.reward_model.near_on_policy_disagreement_sampling()
-                )
             else:
                 raise NotImplementedError
 
@@ -193,17 +189,7 @@ class Workspace(object):
                 self.logger.dump(self.step, save=(self.step > self.cfg.num_seed_steps))
 
             # sample action for data collection
-            if self.step < self.cfg.num_seed_steps:
-                action = torch.tensor(
-                    np.array(
-                        [self.env.action_space.sample() for _ in range(self.num_envs)]
-                    ),
-                    dtype=torch.float32,
-                    device=self.device,
-                )
-            else:
-                with my_utils.eval_mode(self.agent):
-                    action = self.agent.act(obs, sample=True)
+            action = self.agent.act(obs, sample=True)
             action_np = action.detach().cpu().numpy()
 
             # update obs_query, action_query and pic_query to be used to add in reward_model
@@ -213,7 +199,7 @@ class Workspace(object):
                 pic_query[i].append(pic_np[i])
 
             # run training update
-            if self.step == (self.cfg.num_seed_steps + self.cfg.num_unsup_steps):
+            if self.step == self.cfg.num_seed_steps:
                 # update schedule
                 if self.cfg.reward_schedule == 1:
                     frac = (
@@ -235,22 +221,10 @@ class Workspace(object):
                 # relabel buffer
                 self.replay_buffer.relabel_with_predictor(self.reward_model)
 
-                # reset Q due to unsuperivsed exploration
-                self.agent.reset_critic(self.cfg.double_q_critic)
-
-                # update agent
-                self.agent.update_after_reset(
-                    self.replay_buffer,
-                    self.logger,
-                    self.step,
-                    gradient_update=self.cfg.reset_update,
-                    policy_update=True,
-                )
-
-                # reset interact_count
+                # reset interact count
                 interact_count = 0
 
-            elif self.step > self.cfg.num_seed_steps + self.cfg.num_unsup_steps:
+            elif self.step > self.cfg.num_seed_steps:
                 # update reward function
                 if self.total_feedback < self.cfg.max_feedback:
                     if interact_count >= self.cfg.num_interact:
@@ -283,16 +257,6 @@ class Workspace(object):
                         interact_count = 0
 
                 self.agent.update(self.replay_buffer, self.logger, self.step, 1)
-
-            # unsupervised exploration
-            elif self.step > self.cfg.num_seed_steps:
-                self.agent.update_state_ent(
-                    self.replay_buffer,
-                    self.logger,
-                    self.step,
-                    gradient_update=1,
-                    K=self.cfg.topK,
-                )
 
             next_obs, reward, done, done_no_max, _, pic = self.env.step(action)
             reward_hat = self.reward_model.r_hat_tensor(
@@ -335,7 +299,7 @@ import cProfile
 import pstats
 
 
-@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
+@hydra.main(config_path="config", config_name="finetune_PEBBLE", version_base="1.1")
 def main(cfg):
     profiler = cProfile.Profile()
     profiler.enable()

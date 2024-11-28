@@ -31,21 +31,22 @@ reset_update: 100
 
 # reward learning
 max_feedback: 400
-reward_batch: 20
+reward_batch: 10
 segment: 20
 activation: tanh
-num_interact: 20000 # how often we label preferences
+num_interact: 10000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
-feed_type: 1
+feed_type: 2
 ensemble_size: 3
-large_batch: 50 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
+large_batch: 10 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
 label_margin: 0.0
 teacher_beta: -1
 teacher_gamma: 1
 teacher_eps_mistake: 0
 teacher_eps_skip: 0
 teacher_eps_equal: 0.1
+near_range: 60
 
 reward_schedule: 0
 
