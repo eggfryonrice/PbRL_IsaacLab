@@ -22,10 +22,10 @@ import time
 import gymnasium as gym
 import hydra
 
-from IsaacLabMultiEnvWrapper import MultiEnvWrapper
-
 import envs
 import my_utils
+
+from my_utils import MultiEnvWrapper
 
 
 class Workspace(object):

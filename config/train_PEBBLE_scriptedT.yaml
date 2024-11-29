@@ -11,7 +11,7 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 17
+seed: 102
 num_envs: 10
 
 # training

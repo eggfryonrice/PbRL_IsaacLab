@@ -17,14 +17,14 @@ import time
 import gymnasium as gym
 import hydra
 
-from logger import Logger
-from replay_buffer import ReplayBuffer
-from reward_model_humanT import RewardModel
-from collections import deque
-from IsaacLabMultiEnvWrapper import MultiEnvWrapper
-
 import envs
 import my_utils
+
+from my_utils import Logger
+from my_utils import ReplayBuffer
+from my_utils import MultiEnvWrapper
+from reward_model.reward_model_humanT import RewardModel
+from collections import deque
 
 
 class Workspace(object):
