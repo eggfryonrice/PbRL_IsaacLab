@@ -27,7 +27,7 @@ class MultiEnvWrapper(gym.Wrapper):
             obs = self._process_obs(raw_obs)
             return obs
         else:
-            raw_obs, _ = self.env.reset_idx(idx)
+            raw_obs, _ = self.env.unwrapped.reset_idx(idx)
             obs = self._process_obs(raw_obs)
             return obs[idx]
 
@@ -42,7 +42,7 @@ class MultiEnvWrapper(gym.Wrapper):
         """
         if isinstance(action, np.ndarray):
             action = torch.FloatTensor(action).to(self.device)
-        action = action.unsqueeze(0)
+
         obs_raw, rew, terminated, timeout, raw_extra = self.env.step(action)
 
         obs = self._process_obs(obs_raw)

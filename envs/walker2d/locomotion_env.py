@@ -9,17 +9,17 @@ import torch
 
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
-from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
+from ..custom_rl_env import CustomRLEnv, CustomRLEnvCfg
 
 
 def normalize_angle(x):
     return torch.atan2(torch.sin(x), torch.cos(x))
 
 
-class LocomotionEnv(DirectRLEnv):
-    cfg: DirectRLEnvCfg
+class LocomotionEnv(CustomRLEnv):
+    cfg: CustomRLEnvCfg
 
-    def __init__(self, cfg: DirectRLEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: CustomRLEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.joint_gears = torch.tensor(
@@ -137,14 +137,6 @@ class LocomotionEnv(DirectRLEnv):
         self.robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
 
         self._compute_intermediate_values()
-
-    def reset_idx(self, idx: torch.Tensor | None = None):
-        if idx is None:
-            idx = torch.arange(self.num_envs, dtype=torch.int64, device=self.device)
-
-        self._reset_idx(idx)
-
-        return self._get_observations(), self.extras
 
 
 @torch.jit.script
