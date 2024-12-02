@@ -30,7 +30,6 @@ def gen_net(in_size=1, out_size=1, H=128, n_layers=3, activation="tanh"):
 class RewardModel:
     def __init__(
         self,
-        video_path,
         dt,
         ds,
         da,
@@ -43,8 +42,8 @@ class RewardModel:
         capacity=5e5,
         large_batch=1,
         near_range=10,
+        env=None,
     ):
-        self.video_path = video_path
         self.dt = dt
 
         # train data is trajectories, must process to sa and s..
@@ -87,6 +86,8 @@ class RewardModel:
         self.large_batch = large_batch
 
         self.near_range = near_range
+
+        self.env = env
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -256,7 +257,7 @@ class RewardModel:
             [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
         )
 
-        return sa1, sa2, batch_index_1, batch_index_2, starts1, starts2
+        return sa1, sa2
 
     def get_near_on_policy_queries(self, mb_size=20):
         """
@@ -294,7 +295,7 @@ class RewardModel:
             [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
         )
 
-        return sa1, sa2, batch_index_1, batch_index_2, starts1, starts2
+        return sa1, sa2
 
     def put_queries(self, sa1, sa2, labels):
         total_sample = sa1.shape[0]
@@ -328,32 +329,17 @@ class RewardModel:
             np.copyto(self.buffer_label[self.buffer_index : next_index], labels)
             self.buffer_index = next_index
 
-    def get_frame(self, index, start):
-        frames = my_utils.load_frames(
-            self.video_path, index, start, start + self.size_segment
-        )
-        return frames
-
-    def get_label(self, bi1, bi2, s1, s2):
-        label = []
-        for i in range(len(bi1)):
-            frames1 = self.get_frame(bi1[i], s1[i])
-            frames2 = self.get_frame(bi2[i], s2[i])
-            label.append([my_utils.label_preference(frames1, frames2, self.dt)])
-        return np.array(label)
-
     def uniform_sampling(self):
         labels = []
         sa1s = []
         sa2s = []
         while len(labels) < self.mb_size:
-            sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(mb_size=1)
+            sa1, sa2 = self.get_queries(mb_size=1)
 
-            sa1, bi1, s1 = sa1[0], bi1[0], s1[0]
-            sa2, bi2, s2 = sa2[0], bi2[0], s2[0]
+            sa1, sa2 = sa1[0], sa2[0]
 
-            frames1 = self.get_frame(bi1, s1)
-            frames2 = self.get_frame(bi2, s2)
+            frames1 = self.env.obs_query_to_scene_input(sa1[:, : self.ds])
+            frames2 = self.env.obs_query_to_scene_input(sa2[:, : self.ds])
             label = my_utils.label_preference(frames1, frames2, self.dt)
             if label != None:
                 labels.append([label])
@@ -369,15 +355,14 @@ class RewardModel:
         sa1s = []
         sa2s = []
         while len(labels) < self.mb_size:
-            sa1, sa2, bi1, bi2, s1, s2 = self.get_queries(mb_size=self.large_batch)
+            sa1, sa2 = self.get_queries(mb_size=self.large_batch)
 
             _, disagree = self.get_rank_probability(sa1, sa2)
             top_index = (-disagree).argsort()[0]
-            sa1, bi1, s1 = sa1[top_index], bi1[top_index], s1[top_index]
-            sa2, bi2, s2 = sa2[top_index], bi2[top_index], s2[top_index]
+            sa1, sa2 = sa1[top_index], sa2[top_index]
 
-            frames1 = self.get_frame(bi1, s1)
-            frames2 = self.get_frame(bi2, s2)
+            frames1 = self.env.obs_query_to_scene_input(sa1[:, : self.ds])
+            frames2 = self.env.obs_query_to_scene_input(sa2[:, : self.ds])
             label = my_utils.label_preference(frames1, frames2, self.dt)
             if label != None:
                 labels.append([label])
@@ -393,17 +378,14 @@ class RewardModel:
         sa1s = []
         sa2s = []
         while len(labels) < self.mb_size:
-            sa1, sa2, bi1, bi2, s1, s2 = self.get_near_on_policy_queries(
-                mb_size=self.large_batch
-            )
+            sa1, sa2 = self.get_near_on_policy_queries(mb_size=self.large_batch)
 
             _, disagree = self.get_rank_probability(sa1, sa2)
             top_index = (-disagree).argsort()[0]
-            sa1, bi1, s1 = sa1[top_index], bi1[top_index], s1[top_index]
-            sa2, bi2, s2 = sa2[top_index], bi2[top_index], s2[top_index]
+            sa1, sa2 = sa1[top_index], sa2[top_index]
 
-            frames1 = self.get_frame(bi1, s1)
-            frames2 = self.get_frame(bi2, s2)
+            frames1 = self.env.obs_query_to_scene_input(sa1[:, : self.ds])
+            frames2 = self.env.obs_query_to_scene_input(sa2[:, : self.ds])
             label = my_utils.label_preference(frames1, frames2, self.dt)
             if label != None:
                 labels.append([label])

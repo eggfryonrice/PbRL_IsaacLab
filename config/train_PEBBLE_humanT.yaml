@@ -3,7 +3,7 @@ defaults:
   - sac
 
 # env
-env: walker2d_camera
+env: walker2d
 gradient_update: 1
 
 # Basic setup
@@ -55,6 +55,7 @@ log_frequency: 10000
 log_save_tb: true
 
 save_model: true
+save_model_freq: 100000
 
 # hydra configuration
 hydra:

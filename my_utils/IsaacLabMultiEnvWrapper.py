@@ -25,17 +25,11 @@ class MultiEnvWrapper(gym.Wrapper):
         if idx is None:
             raw_obs, _ = self.env.reset(**kwargs)
             obs = self._process_obs(raw_obs)
-            if obs[1] is not None:
-                return obs
-            else:
-                return obs[0]
+            return obs
         else:
             raw_obs, _ = self.reset_idx(idx)
             obs = self._process_obs(raw_obs)
-            if obs[1] is not None:
-                return (obs[0][idx], obs[1][idx])
-            else:
-                return obs[0][idx]
+            return obs[idx]
 
     def step(self, action):
         """
@@ -44,31 +38,23 @@ class MultiEnvWrapper(gym.Wrapper):
             reward,
             done,
             if episode has done without timeout,
-            extra information (such as success),
-            picture of the scene (if it is needed)
+            extra information (such as success)
         """
         if isinstance(action, np.ndarray):
             action = torch.FloatTensor(action).to(self.device)
         action = action.unsqueeze(0)
         obs_raw, rew, terminated, timeout, raw_extra = self.env.step(action)
 
-        obs, pic = self._process_obs(obs_raw)
+        obs = self._process_obs(obs_raw)
         done = terminated | timeout
         done_no_max = terminated & ~timeout
         extra = self._process_extra(raw_extra)
 
-        if pic is not None:
-            return obs, rew, done, done_no_max, extra, pic
-        else:
-            return obs, rew, done, done_no_max, extra
+        return obs, rew, done, done_no_max, extra
 
     def _process_obs(self, raw_obs):
         obs = raw_obs["policy"]
-        if "picture" in raw_obs:
-            pic = raw_obs["picture"]
-            return obs, pic
-        else:
-            return obs, None
+        return obs
 
     def _process_extra(self, raw_extra):
         extra = dict()

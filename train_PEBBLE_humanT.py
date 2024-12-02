@@ -5,7 +5,6 @@ from omni.isaac.lab.app import AppLauncher
 parser = argparse.ArgumentParser(description="isaac sim app related parser")
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
-args_cli.enable_cameras = True
 sys.argv = [sys.argv[0]] + hydra_args
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -31,8 +30,6 @@ class Workspace(object):
     def __init__(self, cfg):
         self.work_dir = os.getcwd()
         print(f"workspace: {self.work_dir}")
-        self.video_path = os.path.join(self.work_dir, "video.h5")
-        my_utils.initialize_h5_file(self.video_path)
 
         self.cfg = cfg
         self.logger = Logger(
@@ -79,7 +76,6 @@ class Workspace(object):
 
         # instantiating the reward model
         self.reward_model = RewardModel(
-            video_path=self.video_path,
             dt=self.env.unwrapped.step_dt,
             ds=self.env.observation_space.shape[0],
             da=self.env.action_space.shape[0],
@@ -90,6 +86,7 @@ class Workspace(object):
             activation=cfg.activation,
             large_batch=cfg.large_batch,
             near_range=cfg.near_range,
+            env=self.env,
         )
 
     def learn_reward(self, first_flag=0):
@@ -135,17 +132,14 @@ class Workspace(object):
         true_episode_reward = np.zeros(self.num_envs)
         episode_done = np.zeros(self.num_envs)
 
-        obs, pic = self.env.reset()
+        obs = self.env.reset()
         obs_np = obs.detach().cpu().numpy()
-        pic_np = pic.detach().cpu().numpy()
 
-        pic_query = [[] for _ in range(self.num_envs)]
         obs_query = [[] for _ in range(self.num_envs)]
         action_query = [[] for _ in range(self.num_envs)]
 
         avg_train_true_return = deque([], maxlen=10)
 
-        frame_save_cnt = 0
         interact_count = 0
 
         while self.step < self.cfg.num_train_steps:
@@ -169,21 +163,14 @@ class Workspace(object):
 
                 if self.total_feedback < self.cfg.max_feedback:
                     for i in done_idx:
-                        my_utils.save_frames(
-                            self.video_path, frame_save_cnt, pic_query[i]
-                        )
-                        frame_save_cnt += 1
-                        pic_query[i] = []
-
                         self.reward_model.add_data(
                             np.array(obs_query[i]), np.array(action_query[i])
                         )
                         obs_query[i] = []
                         action_query[i] = []
 
-                obs[done_idx], pic[done_idx] = self.env.reset(done_idx)
+                obs[done_idx] = self.env.reset(done_idx)
                 obs_np = obs.detach().cpu().numpy()
-                pic_np = pic.detach().cpu().numpy()
                 model_episode_reward[done_idx] = 0
                 avg_train_true_return.extend(true_episode_reward[done_idx])
                 true_episode_reward[done_idx] = 0
@@ -206,11 +193,10 @@ class Workspace(object):
                     action = self.agent.act(obs, sample=True)
             action_np = action.detach().cpu().numpy()
 
-            # update obs_query, action_query and pic_query to be used to add in reward_model
+            # update obs_query, action_query to be used to add in reward_model
             for i in range(self.num_envs):
                 obs_query[i].append(obs_np[i])
                 action_query[i].append(action_np[i])
-                pic_query[i].append(pic_np[i])
 
             # run training update
             if self.step == (self.cfg.num_seed_steps + self.cfg.num_unsup_steps):
@@ -294,7 +280,7 @@ class Workspace(object):
                     K=self.cfg.topK,
                 )
 
-            next_obs, reward, done, done_no_max, _, pic = self.env.step(action)
+            next_obs, reward, done, done_no_max, _ = self.env.step(action)
             reward_hat = self.reward_model.r_hat_tensor(
                 torch.cat([obs, action], axis=-1)
             ).squeeze(-1)
@@ -305,7 +291,6 @@ class Workspace(object):
             reward_hat_np = reward_hat.detach().cpu().numpy()
             done_np = done.float().detach().cpu().numpy()
             done_no_max_np = done_no_max.float().detach().cpu().numpy()
-            pic_np = pic.detach().cpu().numpy()
 
             self.replay_buffer.add_batch(
                 obs_np,
@@ -325,7 +310,7 @@ class Workspace(object):
             self.step += self.num_envs
             interact_count += self.num_envs
 
-            if self.step % 100000 == 0:
+            if self.step % self.cfg.save_model_freq == 0:
                 self.agent.save(self.work_dir, self.step)
 
         self.reward_model.save(self.work_dir, self.step)

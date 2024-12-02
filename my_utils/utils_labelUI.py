@@ -1,102 +1,525 @@
+import pygame
+from pygame.locals import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
 import numpy as np
-import matplotlib.pyplot as plt
-import h5py
-import time
-from matplotlib.animation import FuncAnimation
+import math
 
 
-def initialize_h5_file(h5_file_path):
-    with h5py.File(h5_file_path, "w") as _:
-        pass
+# Camera parameters
+camera_eye = [50, -400, 30]
+camera_target = [50, 0, 40]
+
+# size multiplier
+zoom = 40
+
+# interval multiplier - gets slower times slower
+slower = 3
+
+# primitive size
+sphere_radius = 3
+cuboid_width = 4
+
+# UI page sizef
+UI_width, UI_height = 3200, 1800
+button_height = 100  # height for buttons
+gap = 20  # gap between buttons
+
+# light and material properties
+light_ambient = [0.2, 0.2, 0.2, 1.0]
+light_diffuse = [0.8, 0.8, 0.8, 1.0]
+light_specular = [1.0, 1.0, 1.0, 1.0]
+material_specular = [0.1, 0.1, 0.1, 1.0]
+material_shininess = [10.0]
+
+# list of position, color tuple
+jointPositionsInput = list[tuple[np.ndarray, tuple[float, float, float]]]
+# start position of link,
+# length,
+# quaternion, (how much to rotate from original cuboid, which heads up to z axis)
+# color
+linkInput = tuple[np.ndarray, float, np.ndarray, tuple[float, float, float]]
+# list of link
+linksInput = list[linkInput]
+# jointspositioninput and linksinput
+sceneInput = tuple[jointPositionsInput, linksInput]
 
 
-def save_frames(h5_file_path, key, frames):
-    with h5py.File(h5_file_path, "a") as hf:
-        hf.create_dataset(str(key), data=frames)
+def draw_chessboard():
+    # Draw a simple chessboard floor at z=0
+    numGrid = 10
+    blockSize = 50
+    height = -sphere_radius
+    halfSize = (numGrid * blockSize) / 2
+
+    for i in range(numGrid):
+        for j in range(numGrid):
+            x = -halfSize + i * blockSize
+            y = -halfSize + j * blockSize
+
+            if (i + j) % 2 == 0:
+                glColor3f(0.9, 0.9, 0.9)
+            else:
+                glColor3f(0.1, 0.1, 0.1)
+
+            glBegin(GL_QUADS)
+            glVertex3f(x, y, height)
+            glVertex3f(x + blockSize, y, height)
+            glVertex3f(x + blockSize, y + blockSize, height)
+            glVertex3f(x, y + blockSize, height)
+            glEnd()
 
 
-def load_frames(h5_file_path, key, start, end):
-    with h5py.File(h5_file_path, "r") as hf:
-        frames = hf[str(key)][start:end]
-    return frames
+def draw_sphere(position, color=(0.5, 0.5, 1.0)):
+    position = position * zoom
+    glPushMatrix()
+    glTranslatef(position[0], position[1], position[2])
+    glColor3f(color[0], color[1], color[2])
+    quadric = gluNewQuadric()
+    gluSphere(quadric, sphere_radius, 20, 20)
+    gluDeleteQuadric(quadric)
+    glPopMatrix()
 
 
-def label_preference(
-    frames1: np.ndarray, frames2: np.ndarray, interval: float = 1 / 60
-):
+def draw_cuboid(link: linkInput):
     """
-    Play two videos side by side and return user preference:
-    - Return 0 if the left video is clicked
-    - Return 1 if the right video is clicked
-    - Return -1 if the no preference area is clicked
-    - Return None if the skip area is clicked
+    Draws a cuboid starting from start_pos along the z-axis, rotated according to quat.
     """
-    fig, ax = plt.subplots(
-        2,
-        2,
-        figsize=(14, 10),
-        gridspec_kw={"height_ratios": [10, 1], "hspace": 0.1, "wspace": 0.01},
+    start_pos, length, quat, color = link
+    start_pos = start_pos * zoom
+    length = length * zoom
+
+    glPushMatrix()
+
+    # Translate to the starting position
+    glTranslatef(start_pos[0], start_pos[1], start_pos[2])
+
+    # Apply the rotation from the quaternion
+    angle = 2 * math.degrees(math.acos(quat[0]))
+    axis = quat[1:]
+    if np.linalg.norm(axis) > 1e-6:
+        glRotatef(angle, axis[0], axis[1], axis[2])
+
+    # Set color
+    glColor3f(color[0], color[1], color[2])
+    # Scale to form the cuboid
+    glScalef(cuboid_width, cuboid_width, length)
+
+    # Draw the cuboid
+    vertices = [
+        [0.5, -0.5, sphere_radius / length],  # Front bottom right
+        [0.5, 0.5, sphere_radius / length],  # Front top right
+        [-0.5, 0.5, sphere_radius / length],  # Front top left
+        [-0.5, -0.5, sphere_radius / length],  # Front bottom left
+        [0.5, -0.5, 1.0 - sphere_radius / length],  # Back bottom right
+        [0.5, 0.5, 1.0 - sphere_radius / length],  # Back top right
+        [-0.5, -0.5, 1.0 - sphere_radius / length],  # Back bottom left
+        [-0.5, 0.5, 1.0 - sphere_radius / length],  # Back top left
+    ]
+
+    faces = [
+        [0, 1, 2, 3],  # Front face
+        [5, 4, 6, 7],  # Back face
+        [3, 2, 7, 6],  # Left face
+        [1, 0, 4, 5],  # Right face
+        [2, 1, 5, 7],  # Top face
+        [0, 3, 6, 4],  # Bottom face
+    ]
+
+    normals = [
+        [0, 0, -1],
+        [0, 0, 1],
+        [-1, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, -1, 0],
+    ]
+
+    glBegin(GL_QUADS)
+    for i, face in enumerate(faces):
+        glNormal3fv(normals[i])
+        for vertex in face:
+            glVertex3fv(vertices[vertex])
+    glEnd()
+
+    glPopMatrix()
+
+
+def render_scene(input: sceneInput):
+    jointsPositions, links = input
+
+    # Draw chessboard
+    draw_chessboard()
+
+    # Draw spheres
+    for jointPosition, color in jointsPositions:
+        draw_sphere(jointPosition, color)
+
+    # Draw cuboids
+    for link in links:
+        draw_cuboid(link)
+
+
+# return highlight of left, right, skip button, nopref button,
+# and running state, choice
+def event_handler():
+    mouse_pos = pygame.mouse.get_pos()
+    mouse_pos = (mouse_pos[0], UI_height - mouse_pos[1])
+    highlight_left_scene = False
+    highlight_right_scene = False
+    highlight_skip_button = False
+    highlight_no_pref_button = False
+    running = True
+    choice = None
+    # Determine which area the mouse is hovering over
+    if (
+        gap <= mouse_pos[0]
+        and mouse_pos[0] <= gap + (UI_width // 2) - (gap // 2)
+        and button_height + gap + gap <= mouse_pos[1]
+        and mouse_pos[1] <= UI_height - gap
+    ):
+        highlight_left_scene = True
+    elif (
+        (UI_width // 2) + (gap // 2) <= mouse_pos[0]
+        and mouse_pos[0] <= UI_width - gap
+        and button_height + gap + gap <= mouse_pos[1]
+        and mouse_pos[1] <= UI_height - gap
+    ):
+        highlight_right_scene = True
+    elif (
+        gap <= mouse_pos[0]
+        and mouse_pos[0] <= (UI_width / 2) - (gap / 2)
+        and gap <= mouse_pos[1]
+        and mouse_pos[1] <= button_height + gap
+    ):
+        highlight_skip_button = True
+    elif (
+        (UI_width / 2) + (gap / 2) <= mouse_pos[0]
+        and mouse_pos[0] <= UI_width - gap
+        and gap <= mouse_pos[1]
+        and mouse_pos[1] <= button_height + gap
+    ):
+        highlight_no_pref_button = True
+    # get running sate and choice when user quit of click
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            choice = None
+        elif event.type == pygame.MOUSEBUTTONUP:
+            running = False
+            if highlight_left_scene:
+                choice = 0
+            elif highlight_right_scene:
+                choice = 1
+            elif highlight_skip_button:
+                choice = None  # Skip
+            elif highlight_no_pref_button:
+                choice = -1  # No Preference
+            else:
+                running = True
+
+    return (
+        highlight_left_scene,
+        highlight_right_scene,
+        highlight_skip_button,
+        highlight_no_pref_button,
+        running,
+        choice,
     )
-    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
-    clicked_result = {"choice": None}
 
-    # Show the videos
-    im1 = ax[0, 0].imshow(frames1[0])
-    im2 = ax[0, 1].imshow(frames2[0])
-    ax[0, 0].set_title("query 0", fontsize=12, pad=10)
-    ax[0, 1].set_title("query 1", fontsize=12, pad=10)
-    ax[0, 0].axis("off")
-    ax[0, 1].axis("off")
+def label_preference(frames1, frames2, interval=1 / 60):
+    pygame.init()
 
-    # Bottom-left: "Skip"
-    ax[1, 0].axis("off")
-    ax[1, 0].set_facecolor("lightgray")
-    ax[1, 0].text(
-        0.5, 0.5, "Skip", fontsize=14, ha="center", va="center", color="black"
-    )
+    screen = pygame.display.set_mode((UI_width, UI_height), DOUBLEBUF | OPENGL)
+    pygame.display.set_caption("Preference Labeling")
 
-    # Bottom-right: "No Preference"
-    ax[1, 1].axis("off")
-    ax[1, 1].set_facecolor("lightgray")
-    ax[1, 1].text(
-        0.5,
-        0.5,
-        "No Preference",
-        fontsize=14,
-        ha="center",
-        va="center",
-        color="black",
-    )
+    clock = pygame.time.Clock()
 
-    def update(i):
-        im1.set_data(frames1[i])
-        im2.set_data(frames2[i])
-        return [im1, im2]
+    # Initialize OpenGL
+    glEnable(GL_DEPTH_TEST)
+    glEnable(GL_LIGHTING)
+    glEnable(GL_LIGHT0)
 
-    def on_click(event):
-        if event.inaxes == ax[0, 0]:
-            clicked_result["choice"] = 0
-            print("choosed query 0 ", end="\r", flush=True)
-            plt.close(fig)
-        elif event.inaxes == ax[0, 1]:
-            clicked_result["choice"] = 1
-            print("choosed query 1 ", end="\r", flush=True)
-            plt.close(fig)
-        elif event.inaxes == ax[1, 0]:  # Skip area
-            clicked_result["choice"] = None
-            print("skipped this one", end="\r", flush=True)
-            plt.close(fig)
-        elif event.inaxes == ax[1, 1]:  # No preference area
-            clicked_result["choice"] = -1
-            print("tied            ", end="\r", flush=True)
-            plt.close(fig)
+    glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient)
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse)
+    glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular)
 
-    fig.canvas.mpl_connect("button_press_event", on_click)
+    glEnable(GL_COLOR_MATERIAL)
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
 
-    _ = FuncAnimation(
-        fig, update, frames=len(frames1), interval=1000 * interval, blit=True
-    )
-    plt.show()
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, material_specular)
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, material_shininess)
 
-    return clicked_result["choice"]
+    # Frame index
+    frame_index = 0
+
+    running = True
+    choice = None
+
+    pygame.font.init()
+    font = pygame.font.SysFont(None, 48)
+
+    while running:
+
+        (
+            highlight_left_scene,
+            highlight_right_scene,
+            highlight_skip_button,
+            highlight_no_pref_button,
+            running,
+            choice,
+        ) = event_handler()
+
+        # Clear the screen and set the background color to black
+        glClearColor(0.0, 0.0, 0.0, 1.0)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        # Render left scene with optional highlight
+        scene_width = (UI_width // 2) - (gap // 2) - gap
+        if highlight_left_scene:
+            glClearColor(
+                0.1, 0.1, 0.1, 1.0
+            )  # Dark gray highlight for left scene background
+        else:
+            glClearColor(0.0, 0.0, 0.0, 1.0)
+        glViewport(
+            gap,
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (button_height + gap + 2 * gap),
+        )
+        glScissor(
+            gap,
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (button_height + gap + 2 * gap),
+        )
+        glEnable(GL_SCISSOR_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glDisable(GL_SCISSOR_TEST)
+
+        # Set up projection
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(
+            45,
+            scene_width / (UI_height - (button_height + gap + 2 * gap)),
+            0.1,
+            5000.0,
+        )
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        # Set up camera
+        gluLookAt(
+            camera_eye[0],
+            camera_eye[1],
+            camera_eye[2],
+            camera_target[0],
+            camera_target[1],
+            camera_target[2],
+            0,
+            0,
+            1,
+        )
+        # Render scene
+        render_scene(frames1[frame_index])
+
+        # Render right scene with optional highlight
+        if highlight_right_scene:
+            glClearColor(
+                0.1, 0.1, 0.1, 1.0
+            )  # Dark gray highlight for right scene background
+        else:
+            glClearColor(0.0, 0.0, 0.0, 1.0)
+        glViewport(
+            (UI_width // 2) + (gap // 2),
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (button_height + gap + 2 * gap),
+        )
+        glScissor(
+            (UI_width // 2) + (gap // 2),
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (button_height + gap + 2 * gap),
+        )
+        glEnable(GL_SCISSOR_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glDisable(GL_SCISSOR_TEST)
+        # Set up projection
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(
+            45,
+            scene_width / (UI_height - (button_height + gap + 2 * gap)),
+            0.1,
+            5000.0,
+        )
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        # Set up camera
+        gluLookAt(
+            camera_eye[0],
+            camera_eye[1],
+            camera_eye[2],
+            camera_target[0],
+            camera_target[1],
+            camera_target[2],
+            0,
+            0,
+            1,
+        )
+        # Render scene
+        render_scene(frames2[frame_index])
+
+        # Reset viewport to full screen for drawing the buttons
+        glViewport(0, 0, UI_width, UI_height)
+
+        # Draw "Skip" and "No Preference" buttons with optional highlight
+        button_surface = pygame.Surface(
+            (UI_width, button_height + gap), pygame.SRCALPHA
+        )
+        button_surface.fill((0, 0, 0, 0))  # Transparent background for buttons
+
+        # Draw "Skip" button on the left
+        skip_rect = pygame.Rect(
+            gap,
+            0,
+            (UI_width // 2) - (gap // 2) - gap,
+            button_height,
+        )
+        button_color = (
+            (255, 255, 200, 255) if highlight_skip_button else (200, 200, 200, 255)
+        )
+        pygame.draw.rect(button_surface, button_color, skip_rect)
+        skip_text = font.render("Skip", True, (0, 0, 0))
+        text_rect = skip_text.get_rect(center=skip_rect.center)
+        button_surface.blit(skip_text, text_rect)
+
+        # Draw "No Preference" button on the right
+        no_pref_rect = pygame.Rect(
+            (UI_width // 2) + (gap // 2),
+            0,
+            (UI_width // 2) - (gap // 2) - gap,
+            button_height,
+        )
+        button_color = (
+            (255, 255, 200, 255) if highlight_no_pref_button else (200, 200, 200, 255)
+        )
+        pygame.draw.rect(button_surface, button_color, no_pref_rect)
+        no_pref_text = font.render("Equally Preferable", True, (0, 0, 0))
+        text_rect = no_pref_text.get_rect(center=no_pref_rect.center)
+        button_surface.blit(no_pref_text, text_rect)
+
+        # Convert the Pygame surface to a texture
+        button_texture_data = pygame.image.tostring(button_surface, "RGBA", True)
+
+        # Generate texture ID
+        button_texture_id = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, button_texture_id)
+
+        # Set texture parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+        # Upload texture data
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA,
+            button_surface.get_width(),
+            button_surface.get_height(),
+            0,
+            GL_RGBA,
+            GL_UNSIGNED_BYTE,
+            button_texture_data,
+        )
+
+        # Switch to orthographic projection to draw the buttons
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+        glOrtho(0, UI_width, 0, UI_height, -1, 1)
+
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
+
+        # Disable depth testing and lighting
+        glDisable(GL_DEPTH_TEST)
+        glDisable(GL_LIGHTING)
+
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, button_texture_id)
+
+        glBegin(GL_QUADS)
+        glTexCoord2f(0, 0)
+        glVertex2f(0, 0)
+        glTexCoord2f(1, 0)
+        glVertex2f(UI_width, 0)
+        glTexCoord2f(1, 1)
+        glVertex2f(UI_width, button_height + gap)
+        glTexCoord2f(0, 1)
+        glVertex2f(0, button_height + gap)
+        glEnd()
+
+        glDisable(GL_TEXTURE_2D)
+
+        # Restore matrices
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
+        glPopMatrix()
+
+        # Re-enable depth testing and lighting
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_LIGHTING)
+
+        # Delete the texture
+        glDeleteTextures([button_texture_id])
+
+        # Swap buffers
+        pygame.display.flip()
+
+        # Update frame index
+        frame_index += 1
+        if frame_index >= len(frames1):
+            # wait for 0.2 seconds at end
+            clock.tick(1 / 0.3)
+            frame_index = 0
+
+        # Wait for interval
+        clock.tick(1 / (slower * interval))
+
+    # Clean up
+    pygame.quit()
+
+    print(f"User choice: {choice}    ", end="\r", flush=True)
+
+    return choice
+
+
+# Example usage
+if __name__ == "__main__":
+
+    def create_dummy_frame(frame_number):
+        jointsPositions = [
+            (np.array([0.0, 0.0, 0.0]), (1, 0.5, 0.5)),
+            (np.array([50.0, 0.0, 0.0]), (0.5, 1, 0.5)),
+        ]
+        links = [
+            (
+                np.array([0.0, 0.0, 0.0]),
+                frame_number,
+                np.array([1.0, 0.0, 0.0, 0.0]),
+                (0.5, 0.5, 1),
+            )
+        ]
+        return (jointsPositions, links)
+
+    frames1 = [create_dummy_frame(i) for i in range(60)]
+    frames2 = [create_dummy_frame(i) for i in range(60)]
+
+    choice = label_preference(frames1, frames2)
+    print("User choice:", choice)
