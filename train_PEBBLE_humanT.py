@@ -67,6 +67,8 @@ class Workspace(object):
             capacity=int(cfg.replay_buffer_capacity),
             device=self.device,
             window=self.num_envs,
+            alpha=cfg.reward_alpha,
+            beta=cfg.reward_beta,
         )
 
         # for logging
@@ -219,7 +221,7 @@ class Workspace(object):
                 self.learn_reward(first_flag=1)
 
                 # relabel buffer
-                self.replay_buffer.relabel_with_predictor(self.reward_model)
+                self.replay_buffer.relabel_combined_with_predictor(self.reward_model)
 
                 # reset Q due to unsuperivsed exploration
                 self.agent.reset_critic(self.cfg.double_q_critic)
@@ -265,7 +267,9 @@ class Workspace(object):
                             )
 
                         self.learn_reward()
-                        self.replay_buffer.relabel_with_predictor(self.reward_model)
+                        self.replay_buffer.relabel_combined_with_predictor(
+                            self.reward_model
+                        )
                         interact_count = 0
 
                 self.agent.update(self.replay_buffer, self.logger, self.step, 1)
@@ -292,9 +296,10 @@ class Workspace(object):
             done_np = done.float().detach().cpu().numpy()
             done_no_max_np = done_no_max.float().detach().cpu().numpy()
 
-            self.replay_buffer.add_batch(
+            self.replay_buffer.add_combined_batch(
                 obs_np,
                 action_np,
+                reward_np.reshape(-1, 1),
                 reward_hat_np.reshape(-1, 1),
                 next_obs_np,
                 done_np.reshape(-1, 1),
@@ -312,6 +317,9 @@ class Workspace(object):
 
             if self.step % self.cfg.save_model_freq == 0:
                 self.agent.save(self.work_dir, self.step)
+
+            if self.step % (self.num_envs * 10) == 0:
+                print(f"Step {self.step}", end="\r", flush=True)
 
         self.reward_model.save(self.work_dir, self.step)
 

@@ -44,8 +44,6 @@ class RewardModel:
         near_range=10,
         env=None,
     ):
-        self.dt = dt
-
         # train data is trajectories, must process to sa and s..
         self.ds = ds
         self.da = da
@@ -338,9 +336,11 @@ class RewardModel:
 
             sa1, sa2 = sa1[0], sa2[0]
 
-            frames1 = self.env.obs_query_to_scene_input(sa1[:, : self.ds])
-            frames2 = self.env.obs_query_to_scene_input(sa2[:, : self.ds])
-            label = my_utils.label_preference(frames1, frames2, self.dt)
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(sa1[:, : self.ds])
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(sa2[:, : self.ds])
+            label = my_utils.label_preference(
+                frames1, frames2, self.env.unwrapped.step_dt
+            )
             if label != None:
                 labels.append([label])
                 sa1s.append(sa1)
@@ -361,9 +361,11 @@ class RewardModel:
             top_index = (-disagree).argsort()[0]
             sa1, sa2 = sa1[top_index], sa2[top_index]
 
-            frames1 = self.env.obs_query_to_scene_input(sa1[:, : self.ds])
-            frames2 = self.env.obs_query_to_scene_input(sa2[:, : self.ds])
-            label = my_utils.label_preference(frames1, frames2, self.dt)
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(sa1[:, : self.ds])
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(sa2[:, : self.ds])
+            label = my_utils.label_preference(
+                frames1, frames2, self.env.unwrapped.step_dt
+            )
             if label != None:
                 labels.append([label])
                 sa1s.append(sa1)
@@ -384,9 +386,11 @@ class RewardModel:
             top_index = (-disagree).argsort()[0]
             sa1, sa2 = sa1[top_index], sa2[top_index]
 
-            frames1 = self.env.obs_query_to_scene_input(sa1[:, : self.ds])
-            frames2 = self.env.obs_query_to_scene_input(sa2[:, : self.ds])
-            label = my_utils.label_preference(frames1, frames2, self.dt)
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(sa1[:, : self.ds])
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(sa2[:, : self.ds])
+            label = my_utils.label_preference(
+                frames1, frames2, self.env.unwrapped.step_dt
+            )
             if label != None:
                 labels.append([label])
                 sa1s.append(sa1)

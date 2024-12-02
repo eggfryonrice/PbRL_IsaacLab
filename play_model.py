@@ -47,8 +47,10 @@ class Workspace(object):
             num_envs=self.num_envs,
             render_mode="rgb_array",
         )
-        if env.viewport_camera_controller != None:
-            env.viewport_camera_controller.update_view_location([-6, -6, 3], [2, 0, 2])
+        if env.unwrapped.viewport_camera_controller != None:
+            env.unwrapped.viewport_camera_controller.update_view_location(
+                [-6, -6, 3], [2, 0, 2]
+            )
         if args_cli.video:
             video_kwargs = {
                 "video_folder": os.path.join(self.work_dir, "videos"),
@@ -99,7 +101,7 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="finetune_PEBBLE", version_base="1.1")
+@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
 def main(cfg):
 
     workspace = Workspace(cfg)

@@ -208,7 +208,7 @@ class Workspace(object):
                 self.learn_reward(first_flag=1)
 
                 # relabel buffer
-                self.replay_buffer.relabel_with_predictor(self.reward_model)
+                self.replay_buffer.relabel_combined_with_predictor(self.reward_model)
 
                 # reset interact count
                 interact_count = 0

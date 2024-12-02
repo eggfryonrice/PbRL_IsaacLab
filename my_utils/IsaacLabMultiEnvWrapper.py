@@ -27,7 +27,7 @@ class MultiEnvWrapper(gym.Wrapper):
             obs = self._process_obs(raw_obs)
             return obs
         else:
-            raw_obs, _ = self.reset_idx(idx)
+            raw_obs, _ = self.env.reset_idx(idx)
             obs = self._process_obs(raw_obs)
             return obs[idx]
 

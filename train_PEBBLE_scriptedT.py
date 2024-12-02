@@ -59,8 +59,10 @@ class Workspace(object):
             num_envs=cfg.num_envs,
             render_mode="rgb_array" if args_cli.video else None,
         )
-        if env.viewport_camera_controller != None:
-            env.viewport_camera_controller.update_view_location([-6, -3, 3], [2, 0, 2])
+        if env.unwrapped.viewport_camera_controller != None:
+            env.unwrapped.viewport_camera_controller.update_view_location(
+                [-6, -3, 3], [2, 0, 2]
+            )
         if args_cli.video:
             video_kwargs = {
                 "video_folder": os.path.join(self.work_dir, "videos", "train"),

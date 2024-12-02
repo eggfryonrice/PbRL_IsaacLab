@@ -234,10 +234,14 @@ class SACAgent(Agent):
         )
 
     def load(self, model_dir, step):
-        self.actor.load_state_dict(torch.load("%s/actor_%s.pt" % (model_dir, step)))
-        self.critic.load_state_dict(torch.load("%s/critic_%s.pt" % (model_dir, step)))
+        self.actor.load_state_dict(
+            torch.load("%s/actor_%s.pt" % (model_dir, step), weights_only=True)
+        )
+        self.critic.load_state_dict(
+            torch.load("%s/critic_%s.pt" % (model_dir, step), weights_only=True)
+        )
         self.critic_target.load_state_dict(
-            torch.load("%s/critic_target_%s.pt" % (model_dir, step))
+            torch.load("%s/critic_target_%s.pt" % (model_dir, step), weights_only=True)
         )
 
     def update_actor_and_alpha(self, obs, logger, step, print_flag=False):

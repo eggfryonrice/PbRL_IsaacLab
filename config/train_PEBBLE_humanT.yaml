@@ -11,7 +11,7 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 17
+seed: 1234
 num_envs: 10
 
 # training
@@ -19,6 +19,10 @@ num_train_steps: 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
+
+# for use alpha * env reward + beta * learned reward as reward
+reward_alpha: 1.0
+reward_beta: 0.5
 
 # evaluation
 eval_frequency: 100000000
@@ -39,7 +43,7 @@ reward_lr: 0.0003
 reward_update: 50
 feed_type: 2
 ensemble_size: 3
-large_batch: 10 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
+large_batch: 5 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
 label_margin: 0.0
 teacher_beta: -1
 teacher_gamma: 1
