@@ -53,7 +53,7 @@ class Walker2dEnvCfg(CustomRLEnvCfg):
 
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=10, env_spacing=32.0, replicate_physics=True
+        num_envs=10, env_spacing=4.0, replicate_physics=True
     )
 
     # robot
@@ -75,7 +75,8 @@ class Walker2dEnvCfg(CustomRLEnvCfg):
     stand_height: float = 1.2
     move_speed: float = 1.0
 
-    reset_noise: float = 5e-3
+    termination_height: float = 0.6
+    termination_xz: float = 0.9
 
 
 class Walker2dEnv(LocomotionEnv):

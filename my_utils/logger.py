@@ -15,9 +15,6 @@ COMMON_TRAIN_FORMAT = [
     ("episode_step", "ES", "int"),
     ("model_episode_reward", "MR", "float"),
     ("total_feedback", "TF", "int"),
-    ("labeled_feedback", "LR", "int"),
-    ("noisy_feedback", "NR", "int"),
-    ("total_duration", "TD", "time"),
 ]
 
 COMMON_EVAL_FORMAT = [
@@ -32,12 +29,12 @@ COMMON_EVAL_FORMAT = [
 AGENT_TRAIN_FORMAT = {
     "sac": [
         ("batch_reward", "BR", "float"),
-        ("actor_loss", "ALOSS", "float"),
-        ("critic_loss", "CLOSS", "float"),
-        ("alpha_loss", "TLOSS", "float"),
-        ("alpha_value", "TVAL", "float"),
+        # ("actor_loss", "ALOSS", "float"),
+        # ("critic_loss", "CLOSS", "float"),
+        # ("alpha_loss", "TLOSS", "float"),
+        # ("alpha_value", "TVAL", "float"),
         ("actor_entropy", "AENT", "float"),
-        ("bc_loss", "BCLOSS", "float"),
+        # ("bc_loss", "BCLOSS", "float"),
     ],
     "ppo": [
         ("batch_reward", "BR", "float"),
@@ -112,7 +109,7 @@ class MetersGroup(object):
         for key, disp_key, ty in self._formating:
             value = data.get(key, 0)
             pieces.append(self._format(disp_key, value, ty))
-        print(" | ".join(pieces))
+        print(" | ".join(pieces), "      ", end="\r", flush=True)
 
     def dump(self, step, prefix, save=True):
         if len(self._meters) == 0:
@@ -120,7 +117,7 @@ class MetersGroup(object):
         if save:
             data = self._prime_meters()
             data["step"] = step
-            self._dump_to_csv(data)
+            # self._dump_to_csv(data)
             self._dump_to_console(data, prefix)
         self._meters.clear()
 

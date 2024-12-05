@@ -187,6 +187,8 @@ class RewardModel:
         self.opt = torch.optim.Adam(self.paramlst, lr=self.lr)
 
     def add_data(self, obs, act, rew):
+        if len(obs) < self.size_segment:
+            return
         sa = np.concatenate([obs, act], axis=-1)
         self.inputs.append(sa)
         self.targets.append(rew)
@@ -305,47 +307,39 @@ class RewardModel:
         return np.mean(ensemble_acc)
 
     def get_queries(self, mb_size=20):
-        len_traj, max_len = len(self.inputs[0]), len(self.inputs)
-        img_t_1, img_t_2 = None, None
+        len_traj_list = [len(traj) for traj in self.inputs]
+        total_length = sum(len_traj_list)
 
-        if len(self.inputs[-1]) < len_traj:
-            max_len = max_len - 1
+        # Probabilities proportional to the length of each trajectory
+        probabilities = np.array(len_traj_list) / total_length
 
-        # get train traj
-        train_inputs = np.array(self.inputs[:max_len])
-        train_targets = np.array(self.targets[:max_len])
-
-        batch_index_2 = np.random.choice(max_len, size=mb_size, replace=True)
-        sa_t_2 = train_inputs[batch_index_2]  # Batch x T x dim of s&a
-        r_t_2 = train_targets[batch_index_2]  # Batch x T x 1
-
-        batch_index_1 = np.random.choice(max_len, size=mb_size, replace=True)
-        sa_t_1 = train_inputs[batch_index_1]  # Batch x T x dim of s&a
-        r_t_1 = train_targets[batch_index_1]  # Batch x T x 1
-
-        sa_t_1 = sa_t_1.reshape(-1, sa_t_1.shape[-1])  # (Batch x T) x dim of s&a
-        r_t_1 = r_t_1.reshape(-1, r_t_1.shape[-1])  # (Batch x T) x 1
-        sa_t_2 = sa_t_2.reshape(-1, sa_t_2.shape[-1])  # (Batch x T) x dim of s&a
-        r_t_2 = r_t_2.reshape(-1, r_t_2.shape[-1])  # (Batch x T) x 1
-
-        # Generate time index
-        time_index = np.array(
-            [
-                list(range(i * len_traj, i * len_traj + self.size_segment))
-                for i in range(mb_size)
-            ]
+        # Select batch indices proportional to the length of each trajectory
+        batch_index_1 = np.random.choice(
+            len(len_traj_list), size=mb_size, replace=True, p=probabilities
         )
-        time_index_2 = time_index + np.random.choice(
-            len_traj - self.size_segment, size=mb_size, replace=True
-        ).reshape(-1, 1)
-        time_index_1 = time_index + np.random.choice(
-            len_traj - self.size_segment, size=mb_size, replace=True
-        ).reshape(-1, 1)
+        batch_index_2 = np.random.choice(
+            len(len_traj_list), size=mb_size, replace=True, p=probabilities
+        )
 
-        sa_t_1 = np.take(sa_t_1, time_index_1, axis=0)  # Batch x size_seg x dim of s&a
-        r_t_1 = np.take(r_t_1, time_index_1, axis=0)  # Batch x size_seg x 1
-        sa_t_2 = np.take(sa_t_2, time_index_2, axis=0)  # Batch x size_seg x dim of s&a
-        r_t_2 = np.take(r_t_2, time_index_2, axis=0)  # Batch x size_seg x 1
+        sa_t_1, r_t_1, sa_t_2, r_t_2 = [], [], [], []
+
+        for idx in batch_index_1:
+            traj_len = len(self.inputs[idx])
+            start_idx = np.random.randint(0, traj_len - self.size_segment + 1)
+            sa_t_1.append(self.inputs[idx][start_idx : start_idx + self.size_segment])
+            r_t_1.append(self.targets[idx][start_idx : start_idx + self.size_segment])
+
+        for idx in batch_index_2:
+            traj_len = len(self.inputs[idx])
+            start_idx = np.random.randint(0, traj_len - self.size_segment + 1)
+            sa_t_2.append(self.inputs[idx][start_idx : start_idx + self.size_segment])
+            r_t_2.append(self.targets[idx][start_idx : start_idx + self.size_segment])
+
+        # Convert lists to numpy arrays
+        sa_t_1 = np.array(sa_t_1)
+        r_t_1 = np.array(r_t_1)
+        sa_t_2 = np.array(sa_t_2)
+        r_t_2 = np.array(r_t_2)
 
         return sa_t_1, sa_t_2, r_t_1, r_t_2
 

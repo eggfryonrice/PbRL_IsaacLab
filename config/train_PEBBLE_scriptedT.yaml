@@ -11,7 +11,7 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 102
+seed: 123
 num_envs: 10
 
 # training
@@ -26,8 +26,8 @@ topK: 5
 reset_update: 100
 
 # reward learning
-max_feedback: 300
-reward_batch: 30
+max_feedback: 400
+reward_batch: 20
 segment: 50
 activation: tanh
 num_interact: 20000 # how often we label preferences

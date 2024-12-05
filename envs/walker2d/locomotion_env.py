@@ -114,8 +114,16 @@ class LocomotionEnv(CustomRLEnv):
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         self._compute_intermediate_values()
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        died = False
+        # die due to torso height less than termination_height
+        died1 = self.torso_position[:, 2] < self.cfg.termination_height
+        # die due to torso angle lies down too much, so that xz value higher than termination_xz
+        died2 = torch.logical_or(
+            self.orientation_xz[:, 0] > self.cfg.termination_xz,
+            self.orientation_xz[:, 0] < -self.cfg.termination_xz,
+        )
+        died = torch.logical_or(died1, died2)
         return died, time_out
+        # return False, time_out
 
     def _reset_idx(self, env_ids: torch.Tensor | None):
         if env_ids is None or len(env_ids) == self.num_envs:
@@ -123,14 +131,10 @@ class LocomotionEnv(CustomRLEnv):
         self.robot.reset(env_ids)
         super()._reset_idx(env_ids)
 
-        joint_pos = self.robot.data.default_joint_pos[env_ids].clone()
-        joint_vel = self.robot.data.default_joint_vel[env_ids].clone()
+        joint_pos = self.robot.data.default_joint_pos[env_ids]
+        joint_vel = self.robot.data.default_joint_vel[env_ids]
         default_root_state = self.robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self.scene.env_origins[env_ids]
-
-        noise_range = self.cfg.reset_noise
-        joint_pos += (torch.rand_like(joint_pos) * 2 - 1) * noise_range
-        joint_vel += (torch.rand_like(joint_vel) * 2 - 1) * noise_range
 
         self.robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self.robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)

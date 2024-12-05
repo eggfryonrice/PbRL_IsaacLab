@@ -114,7 +114,7 @@ class RewardModel:
         self.mb_size = int(new_batch)
 
     def add_data(self, obs, act):
-        if len(obs) <= self.mb_size:
+        if len(obs) < self.size_segment:
             return
         sa = np.concatenate([obs, act], axis=-1)
         self.inputs.append(sa)
@@ -235,22 +235,32 @@ class RewardModel:
     def get_queries(self, mb_size=20):
         max_len = len(self.inputs)
 
-        batch_index_1 = np.random.choice(max_len, size=mb_size, replace=True)
-        sa1 = [self.inputs[i] for i in batch_index_1]
+        # Select batch indices proportional to the length of each trajectory
+        len_traj_list = [len(traj) for traj in self.inputs]
+        total_length = sum(len_traj_list)
+        probabilities = np.array(len_traj_list) / total_length
 
-        batch_index_2 = np.random.choice(max_len, size=mb_size, replace=True)
+        # Sample batch indices with probability proportional to trajectory length
+        batch_index_1 = np.random.choice(
+            max_len, size=mb_size, replace=True, p=probabilities
+        )
+        batch_index_2 = np.random.choice(
+            max_len, size=mb_size, replace=True, p=probabilities
+        )
+
+        sa1 = [self.inputs[i] for i in batch_index_1]
         sa2 = [self.inputs[i] for i in batch_index_2]
 
-        starts1 = np.array(
-            [np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1]
-        )
+        starts1 = [
+            np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1
+        ]
         sa1 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa1, starts1)]
         )
 
-        starts2 = np.array(
-            [np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2]
-        )
+        starts2 = [
+            np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2
+        ]
         sa2 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
         )
@@ -264,31 +274,39 @@ class RewardModel:
         """
         max_len = len(self.inputs)
 
-        if max_len < self.near_range:
-            batch_index_1 = np.random.choice(max_len, size=mb_size, replace=True)
-            sa1 = [self.inputs[i] for i in batch_index_1]
-            batch_index_2 = np.random.choice(max_len, size=mb_size, replace=True)
-            sa2 = [self.inputs[i] for i in batch_index_2]
-        else:
-            batch_index_1 = np.random.choice(
-                self.near_range, size=mb_size, replace=True
-            ) + (max_len - self.near_range)
-            sa1 = [self.inputs[i] for i in batch_index_1]
-            batch_index_2 = np.random.choice(
-                self.near_range, size=mb_size, replace=True
-            ) + (max_len - self.near_range)
-            sa2 = [self.inputs[i] for i in batch_index_2]
+        near_inputs = self.inputs
+        if max_len > self.near_range:
+            max_len = self.near_range
+            near_inputs = self.inputs[max_len - self.near_range, max_len]
 
-        starts1 = np.array(
-            [np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1]
+        # Select batch indices proportional to the length of each trajectory
+        len_traj_list = [len(traj) for traj in near_inputs]
+        total_length = sum(len_traj_list)
+        probabilities = np.array(len_traj_list) / total_length
+
+        # Sample batch indices with probability proportional to trajectory length
+        batch_index_1 = np.random.choice(
+            max_len, size=mb_size, replace=True, p=probabilities
         )
+        batch_index_2 = np.random.choice(
+            max_len, size=mb_size, replace=True, p=probabilities
+        )
+
+        sa1 = [self.inputs[i] for i in batch_index_1]
+        sa2 = [self.inputs[i] for i in batch_index_2]
+
+        starts1 = [
+            np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1
+        ]
+
         sa1 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa1, starts1)]
         )
 
-        starts2 = np.array(
-            [np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2]
-        )
+        starts2 = [
+            np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2
+        ]
+
         sa2 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
         )

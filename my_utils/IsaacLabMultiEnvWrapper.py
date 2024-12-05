@@ -21,15 +21,20 @@ class MultiEnvWrapper(gym.Wrapper):
             shape=(original_observation_space.shape[-1],),
         )
 
-    def reset(self, idx=None, **kwargs):
+    def get_obs(self, idx=None, **kwargs):
         if idx is None:
-            raw_obs, _ = self.env.reset(**kwargs)
+            raw_obs = self.env.unwrapped.get_obs()
             obs = self._process_obs(raw_obs)
             return obs
         else:
-            raw_obs, _ = self.env.unwrapped.reset_idx(idx)
+            raw_obs = self.env.unwrapped.get_obs()
             obs = self._process_obs(raw_obs)
             return obs[idx]
+
+    def reset(self, **kwargs):
+        raw_obs, _ = self.env.reset(**kwargs)
+        obs = self._process_obs(raw_obs)
+        return obs
 
     def step(self, action):
         """

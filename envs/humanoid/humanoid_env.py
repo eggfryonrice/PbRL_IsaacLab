@@ -48,7 +48,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
 
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=10, env_spacing=32.0, replicate_physics=True
+        num_envs=10, env_spacing=4.0, replicate_physics=True
     )
 
     # robot
