@@ -29,10 +29,10 @@ class LocomotionEnv(CustomRLEnv):
     def __init__(self, cfg: CustomRLEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
 
-        self.action_scale = self.cfg.action_scale
         self.joint_gears = torch.tensor(
             self.cfg.joint_gears, dtype=torch.float32, device=self.sim.device
         )
+
         self.motor_effort_ratio = torch.ones_like(
             self.joint_gears, device=self.sim.device
         )
@@ -61,6 +61,9 @@ class LocomotionEnv(CustomRLEnv):
         self.basis_vec0 = self.heading_vec.clone()
         self.basis_vec1 = self.up_vec.clone()
 
+        self._joint_pos_lowerbound = self.robot.data.soft_joint_pos_limits[0, :, 0]
+        self._joint_pos_upperbound = self.robot.data.soft_joint_pos_limits[0, :, 1]
+
     def _setup_scene(self):
         self.robot = Articulation(self.cfg.robot)
         # add ground plane
@@ -80,7 +83,17 @@ class LocomotionEnv(CustomRLEnv):
         self.actions = actions.clone()
 
     def _apply_action(self):
-        forces = self.action_scale * self.joint_gears * self.actions
+        target_position = self.actions[:, : len(self._joint_dof_idx)]
+        target_position = (target_position + 1) / 2 * (
+            self._joint_pos_upperbound - self._joint_pos_lowerbound
+        ) + self._joint_pos_lowerbound
+        target_velocity = (
+            self.actions[:, len(self._joint_dof_idx) :]
+            / self.cfg.angular_velocity_scale
+        )
+        forces = self.joint_gears * self.cfg.PD_Kp * (
+            target_position - self.robot.data.joint_pos
+        ) + self.cfg.PD_Kd * (target_velocity - self.robot.data.joint_vel)
         self.robot.set_joint_effort_target(forces, joint_ids=self._joint_dof_idx)
 
     def _compute_intermediate_values(self):
@@ -172,7 +185,8 @@ class LocomotionEnv(CustomRLEnv):
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         self._compute_intermediate_values()
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        died = False
+        died = self.torso_position[:, 2] < self.cfg.termination_height
+        # died = False
         return died, time_out
 
     def _reset_idx(self, env_ids: torch.Tensor | None):
@@ -226,11 +240,11 @@ def compute_rewards(
     up_reward = torch.where(up_proj > 0.93, up_reward + up_weight, up_reward)
 
     # energy penalty for movement
-    actions_cost = torch.sum(actions**2, dim=-1)
-    electricity_cost = torch.sum(
-        torch.abs(actions * dof_vel * dof_vel_scale) * motor_effort_ratio.unsqueeze(0),
-        dim=-1,
-    )
+    # actions_cost = torch.sum(actions**2, dim=-1)
+    # electricity_cost = torch.sum(
+    #     torch.abs(actions * dof_vel * dof_vel_scale) * motor_effort_ratio.unsqueeze(0),
+    #     dim=-1,
+    # )
 
     # dof at limit cost
     dof_at_limit_cost = torch.sum(dof_pos_scaled > 0.98, dim=-1)
@@ -244,8 +258,8 @@ def compute_rewards(
         + alive_reward
         + up_reward
         + heading_reward
-        - actions_cost_scale * actions_cost
-        - energy_cost_scale * electricity_cost
+        # - actions_cost_scale * actions_cost
+        # - energy_cost_scale * electricity_cost
         - dof_at_limit_cost
     )
     # adjust reward for fallen agents

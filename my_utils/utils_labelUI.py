@@ -22,7 +22,7 @@ cuboid_width = 4
 
 # UI page sizef
 UI_width, UI_height = 3200, 1800
-button_height = 100  # height for buttons
+button_height = 200  # height for buttons
 gap = 20  # gap between buttons
 
 # light and material properties
@@ -511,7 +511,7 @@ if __name__ == "__main__":
         links = [
             (
                 np.array([0.0, 0.0, 0.0]),
-                frame_number,
+                1,
                 np.array([1.0, 0.0, 0.0, 0.0]),
                 (0.5, 0.5, 1),
             )

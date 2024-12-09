@@ -3,18 +3,18 @@ defaults:
   - sac
 
 #env
-env: walker2d
+env: humanoid
 
 # Basic setup
 experiment: sac
 agent_name: sac
 
 device: cuda
-seed: 19
+seed: 20
 num_envs: 10
 
 # training
-num_train_steps: 5e5
+num_train_steps: 2e6 # 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1

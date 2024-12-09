@@ -20,7 +20,7 @@ import time
 import hydra
 
 from reward_model.reward_model_scriptedT import RewardModel
-from BaseWorkspace import BaseWorkspace
+from base_workspace import BaseWorkspace
 
 
 class Workspace(BaseWorkspace):

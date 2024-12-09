@@ -18,7 +18,7 @@ import numpy as np
 import time
 import hydra
 
-from BaseWorkspace import BaseWorkspace
+from base_workspace import BaseWorkspace
 
 
 class Workspace(BaseWorkspace):

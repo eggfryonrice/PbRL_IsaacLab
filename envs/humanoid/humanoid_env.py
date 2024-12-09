@@ -25,9 +25,8 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     # env
     episode_length_s = 25.0 + 1e-6
     decimation = 2
-    action_scale = 1.0
-    action_space = 21
-    observation_space = 75
+    action_space = 42
+    observation_space = 96
     state_space = 0
 
     # simulation
@@ -76,6 +75,22 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
         22.5,  # left_foot
         22.5,  # left_foot
     ]
+
+    # 'lower_waist:0', 'lower_waist:1'
+    # 'right_upper_arm:0', 'right_upper_arm:2'
+    # 'left_upper_arm:0', 'left_upper_arm:2'
+    # 'pelvis'
+    # 'right_lower_arm'
+    # 'left_lower_arm'
+    # 'right_thigh:0', 'right_thigh:1', 'right_thigh:2'
+    # 'left_thigh:0', 'left_thigh:1', 'left_thigh:2'
+    # 'right_shin'
+    # 'left_shin'
+    # 'right_foot:0', 'right_foot:1'
+    # 'left_foot:0', 'left_foot:1'
+
+    PD_Kp = 1
+    PD_Kd = 0.1
 
     heading_weight: float = 0.5
     up_weight: float = 0.1

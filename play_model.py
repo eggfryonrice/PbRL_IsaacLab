@@ -83,7 +83,7 @@ class Workspace(object):
             # reset done environment
             done_idx = np.where(episode_done)[0]
             if done_idx.size != 0:
-                obs[done_idx], _ = self.env.reset(done_idx)
+                obs[done_idx] = self.env.get_obs(done_idx)
 
             with my_utils.eval_mode(self.agent):
                 action = self.agent.act(obs, sample=False)
@@ -101,7 +101,7 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
+@hydra.main(config_path="config", config_name="train_SAC", version_base="1.1")
 def main(cfg):
 
     workspace = Workspace(cfg)

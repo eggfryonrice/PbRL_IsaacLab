@@ -16,7 +16,7 @@ import hydra
 
 
 from my_utils import ReplayBuffer
-from BaseWorkspace import BaseWorkspace
+from base_workspace import BaseWorkspace
 
 
 class Workspace(BaseWorkspace):
