@@ -86,7 +86,7 @@ class Workspace(object):
                 obs[done_idx] = self.env.get_obs(done_idx)
 
             with my_utils.eval_mode(self.agent):
-                action = self.agent.act(obs, sample=False)
+                action = self.agent.act(obs, sample=True)
 
             step_result = self.env.step(action)
 

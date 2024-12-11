@@ -58,6 +58,7 @@ class Walker2dEnvCfg(CustomRLEnvCfg):
 
     # robot
     robot: ArticulationCfg = WALKER2D_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    usd_path: str = robot.spawn.usd_path
 
     joint_gears: list = [
         100.0000,  # thigh_right
@@ -85,7 +86,7 @@ class Walker2dEnv(LocomotionEnv):
     def __init__(self, cfg: Walker2dEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
 
-    def obs_query_to_scene_input(self, obs_query: np.ndarray):
+    def obs_query_to_scene_input(self, obs_query: np.ndarray, bs_query: np.ndarray):
         frames = []
 
         torso_x = 0
@@ -221,7 +222,7 @@ class Walker2dEnv(LocomotionEnv):
                 ),
             ]
 
-            frames.append((jointPositions, links))
+            frames.append(([], jointPositions, links))
 
             torso_x += torso_xvel * self.step_dt
 

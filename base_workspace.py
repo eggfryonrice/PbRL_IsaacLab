@@ -11,7 +11,8 @@ import hydra
 from my_utils import Logger
 from my_utils import ReplayBuffer
 from my_utils import MultiEnvWrapper
-from reward_model.reward_model_humanT import RewardModel
+import reward_model.reward_model_humanT
+import reward_model.reward_model_scriptedT
 
 
 class BaseWorkspace(object):
@@ -95,8 +96,20 @@ class BaseWorkspace(object):
             beta=self.cfg.reward_beta,
         )
 
-    def initialize_reward_model(self):
-        self.reward_model = RewardModel(
+    def initialize_reward_model_scriptedT(self):
+        self.reward_model = reward_model.reward_model_scriptedT.RewardModel(
+            ds=self.env.observation_space.shape[0],
+            da=self.env.action_space.shape[0],
+            ensemble_size=self.cfg.ensemble_size,
+            lr=self.cfg.reward_lr,
+            mb_size=self.cfg.reward_batch,
+            size_segment=self.cfg.segment,
+            activation=self.cfg.activation,
+            large_batch=self.cfg.large_batch,
+        )
+
+    def initialize_reward_model_humanT(self):
+        self.reward_model = reward_model.reward_model_humanT.RewardModel(
             dt=self.env.unwrapped.step_dt,
             ds=self.env.observation_space.shape[0],
             da=self.env.action_space.shape[0],
@@ -152,12 +165,14 @@ class BaseWorkspace(object):
         self.env_episode_reward = np.zeros(self.num_envs)
         self.episode_done = np.zeros(self.num_envs)
 
-        self.obs = self.env.reset()
+        self.obs, self.body_state = self.env.reset()
         self.obs_np = self.obs.detach().cpu().numpy()
+        self.body_state_np = self.body_state.detach().cpu().numpy()
 
     def handle_done(self, done_idx):
-        self.obs[done_idx] = self.env.get_obs(done_idx)
+        self.obs[done_idx], self.body_state[done_idx] = self.env.get_obs(done_idx)
         self.obs_np = self.obs.detach().cpu().numpy()
+        self.body_state_np = self.body_state.detach().cpu().numpy()
 
         self.logger.log(
             "train/episode_reward",
@@ -211,14 +226,19 @@ class BaseWorkspace(object):
         )
 
     def environment_step(self):
-        self.next_obs, self.reward, self.done, self.done_no_max, _ = self.env.step(
-            self.action
-        )
+        (
+            self.next_obs,
+            self.reward,
+            self.done,
+            self.done_no_max,
+            self.next_body_state,
+        ) = self.env.step(self.action)
 
         self.next_obs_np = self.next_obs.detach().cpu().numpy()
         self.reward_np = self.reward.detach().cpu().numpy()
         self.done_np = self.done.float().detach().cpu().numpy()
         self.done_no_max_np = self.done_no_max.float().detach().cpu().numpy()
+        self.next_body_state_np = self.next_body_state.detach().cpu().numpy()
 
     def reallocate_datas(self):
         self.episode_done = self.done_np
@@ -226,3 +246,5 @@ class BaseWorkspace(object):
 
         self.obs = self.next_obs
         self.obs_np = self.next_obs_np
+        self.body_state = self.next_body_state
+        self.body_state_np = self.next_body_state_np

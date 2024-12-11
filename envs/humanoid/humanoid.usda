@@ -28,7 +28,7 @@
             double voxelCeiling = 460
         }
         dictionary omni_layer = {
-            string authoring_layer = "./humanoid_instanceable.usda"
+            string authoring_layer = "./humanoid.usda"
             dictionary locked = {
             }
             dictionary muteness = {
@@ -100,7 +100,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/torso/collisions>
         )
         {
             def Capsule "torso" (
@@ -136,7 +135,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/torso/visuals>
         )
         {
             def Capsule "torso"
@@ -621,7 +619,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/head/collisions>
         )
         {
             def Sphere "head" (
@@ -640,7 +637,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/head/visuals>
         )
         {
             def Sphere "head"
@@ -672,7 +668,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/lower_waist/collisions>
         )
         {
             def Capsule "lower_waist" (
@@ -693,7 +688,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/lower_waist/visuals>
         )
         {
             def Capsule "lower_waist"
@@ -727,7 +721,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/pelvis/collisions>
         )
         {
             def Capsule "butt" (
@@ -748,7 +741,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/pelvis/visuals>
         )
         {
             def Capsule "butt"
@@ -782,7 +774,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_thigh/collisions>
         )
         {
             def Capsule "right_thigh" (
@@ -803,7 +794,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_thigh/visuals>
         )
         {
             def Capsule "right_thigh"
@@ -837,7 +827,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_shin/collisions>
         )
         {
             def Capsule "right_shin" (
@@ -858,7 +847,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_shin/visuals>
         )
         {
             def Capsule "right_shin"
@@ -894,7 +882,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_foot/collisions>
         )
         {
             def Capsule "right_right_foot" (
@@ -930,7 +917,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_foot/visuals>
         )
         {
             def Capsule "right_right_foot"
@@ -975,7 +961,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_thigh/collisions>
         )
         {
             def Capsule "left_thigh" (
@@ -996,7 +981,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_thigh/visuals>
         )
         {
             def Capsule "left_thigh"
@@ -1030,7 +1014,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_shin/collisions>
         )
         {
             def Capsule "left_shin" (
@@ -1051,7 +1034,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_shin/visuals>
         )
         {
             def Capsule "left_shin"
@@ -1087,7 +1069,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_foot/collisions>
         )
         {
             def Capsule "left_left_foot" (
@@ -1123,7 +1104,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_foot/visuals>
         )
         {
             def Capsule "left_left_foot"
@@ -1168,7 +1148,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_upper_arm/collisions>
         )
         {
             def Capsule "right_upper_arm" (
@@ -1189,7 +1168,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_upper_arm/visuals>
         )
         {
             def Capsule "right_upper_arm"
@@ -1223,7 +1201,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_lower_arm/collisions>
         )
         {
             def Capsule "right_lower_arm" (
@@ -1244,7 +1221,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_lower_arm/visuals>
         )
         {
             def Capsule "right_lower_arm"
@@ -1278,7 +1254,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_hand/collisions>
         )
         {
             def Sphere "right_hand" (
@@ -1297,7 +1272,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/right_hand/visuals>
         )
         {
             def Sphere "right_hand"
@@ -1329,7 +1303,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_upper_arm/collisions>
         )
         {
             def Capsule "left_upper_arm" (
@@ -1350,7 +1323,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_upper_arm/visuals>
         )
         {
             def Capsule "left_upper_arm"
@@ -1384,7 +1356,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_lower_arm/collisions>
         )
         {
             def Capsule "left_lower_arm" (
@@ -1405,7 +1376,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_lower_arm/visuals>
         )
         {
             def Capsule "left_lower_arm"
@@ -1439,7 +1409,6 @@ def Xform "humanoid" (
 
         def "collisions" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_hand/collisions>
         )
         {
             def Sphere "left_hand" (
@@ -1458,7 +1427,6 @@ def Xform "humanoid" (
 
         def "visuals" (
             instanceable = true
-            prepend references = @../../../Self-Study/IsaacLabPractice/humanoid.usd@</humanoid/left_hand/visuals>
         )
         {
             def Sphere "left_hand"

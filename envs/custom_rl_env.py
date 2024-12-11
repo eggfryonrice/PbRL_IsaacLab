@@ -3,11 +3,12 @@ import numpy as np
 
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
 from omni.isaac.lab.utils import configclass
+from omni.isaac.lab.assets import Articulation
 
 
 @configclass
 class CustomRLEnvCfg(DirectRLEnvCfg):
-    pass
+    usd_path: str = None
 
 
 class CustomRLEnv(DirectRLEnv):
@@ -23,5 +24,5 @@ class CustomRLEnv(DirectRLEnv):
     def _compute_intermediate_values(self):
         raise NotImplementedError("This method should be implemented by a subclass")
 
-    def obs_query_to_scene_input(self, obs_query: np.ndarray):
+    def obs_query_to_scene_input(self, obs_query: np.ndarray, bs_query: np.ndarray):
         raise NotImplementedError("This method should be implemented by a subclass")

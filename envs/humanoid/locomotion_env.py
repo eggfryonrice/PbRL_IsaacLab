@@ -84,9 +84,14 @@ class LocomotionEnv(CustomRLEnv):
 
     def _apply_action(self):
         target_position = self.actions[:, : len(self._joint_dof_idx)]
-        target_position = (target_position + 1) / 2 * (
-            self._joint_pos_upperbound - self._joint_pos_lowerbound
-        ) + self._joint_pos_lowerbound
+        # target position ranges from lower limit -1 to upper limit + 1
+        target_position = (
+            (target_position + 1)
+            / 2
+            * (self._joint_pos_upperbound - self._joint_pos_lowerbound + 2)
+            + self._joint_pos_lowerbound
+            - 1
+        )
         target_velocity = (
             self.actions[:, len(self._joint_dof_idx) :]
             / self.cfg.angular_velocity_scale
@@ -110,6 +115,7 @@ class LocomotionEnv(CustomRLEnv):
             self.robot.data.joint_vel,
         )
 
+        self.body_state = self.robot.data.body_state_w
         (
             self.up_proj,
             self.heading_proj,
@@ -144,21 +150,23 @@ class LocomotionEnv(CustomRLEnv):
     def _get_observations(self) -> dict:
         obs = torch.cat(
             (
+                self.dof_pos_scaled,
                 self.torso_position[:, 2].view(-1, 1),
-                self.vel_loc,
+                self.vel_loc,  # difference btwn vel_loc and velocity?
                 self.angvel_loc * self.cfg.angular_velocity_scale,
                 normalize_angle(self.yaw).unsqueeze(-1),
                 normalize_angle(self.roll).unsqueeze(-1),
-                normalize_angle(self.angle_to_target).unsqueeze(-1),
+                normalize_angle(self.angle_to_target).unsqueeze(
+                    -1
+                ),  # difference btwn pitch and velocity?
                 self.up_proj.unsqueeze(-1),
                 self.heading_proj.unsqueeze(-1),
-                self.dof_pos_scaled,
                 self.dof_vel * self.cfg.dof_vel_scale,
                 self.actions,
             ),
             dim=-1,
         )
-        observations = {"policy": obs}
+        observations = {"policy": obs, "body_state": self.body_state}
         return observations
 
     def _get_rewards(self) -> torch.Tensor:
@@ -180,7 +188,7 @@ class LocomotionEnv(CustomRLEnv):
             self.cfg.alive_reward_scale,
             self.motor_effort_ratio,
         )
-        return total_reward
+        return total_reward / self.cfg.reward_scale
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         self._compute_intermediate_values()

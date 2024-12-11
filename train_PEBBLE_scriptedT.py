@@ -34,7 +34,7 @@ class Workspace(BaseWorkspace):
         self.step = 0
 
         # instantiating the reward model
-        self.initialize_reward_model()
+        self.initialize_reward_model_scriptedT()
 
     def run(self):
         self.initialize_running()

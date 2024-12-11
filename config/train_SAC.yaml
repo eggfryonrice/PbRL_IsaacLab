@@ -10,11 +10,11 @@ experiment: sac
 agent_name: sac
 
 device: cuda
-seed: 20
-num_envs: 10
+seed: 23
+num_envs: 100
 
 # training
-num_train_steps: 2e6 # 5e5
+num_train_steps: 2e7 # 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1

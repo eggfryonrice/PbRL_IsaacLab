@@ -32,17 +32,19 @@ light_specular = [1.0, 1.0, 1.0, 1.0]
 material_specular = [0.1, 0.1, 0.1, 1.0]
 material_shininess = [10.0]
 
-# list of position, color tuple
-jointPositionsInput = list[tuple[np.ndarray, tuple[float, float, float]]]
+
+# position, color tuple
+sphereInput = tuple[np.ndarray, tuple[float, float, float]]
 # start position of link,
 # length,
 # quaternion, (how much to rotate from original cuboid, which heads up to z axis)
 # color
 linkInput = tuple[np.ndarray, float, np.ndarray, tuple[float, float, float]]
-# list of link
-linksInput = list[linkInput]
+# start position, end position, radius, color
+capsuleInput = tuple[np.ndarray, np.ndarray, float, tuple[float, float, float]]
+
 # jointspositioninput and linksinput
-sceneInput = tuple[jointPositionsInput, linksInput]
+sceneInput = tuple[list[capsuleInput], list[sphereInput], list[linkInput]]
 
 
 def draw_chessboard():
@@ -70,7 +72,8 @@ def draw_chessboard():
             glEnd()
 
 
-def draw_sphere(position, color=(0.5, 0.5, 1.0)):
+def draw_sphere(sphere: sphereInput):
+    position, color = sphere
     position = position * zoom
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
@@ -145,19 +148,81 @@ def draw_cuboid(link: linkInput):
     glPopMatrix()
 
 
+def draw_capsule(capsule: capsuleInput):
+    """
+    Draws a capsule between two points
+    """
+    start_pos, end_pos, radius, color = capsule
+    start_pos = start_pos * zoom
+    end_pos = end_pos * zoom
+    radius = radius * zoom
+
+    glPushMatrix()
+    glColor3f(color[0], color[1], color[2])
+
+    # Compute the direction vector and its length
+    direction = end_pos - start_pos
+    length = np.linalg.norm(direction)
+
+    if length < 0:
+        return
+
+    # Apply translation to start position
+    glTranslatef(start_pos[0], start_pos[1], start_pos[2])
+
+    if length > 1e-6:
+        # Normalize the direction vector
+        direction_normalized = direction / length
+
+        # Calculate rotation axis and angle to align with the Z-axis
+        z_axis = np.array([0.0, 0.0, 1.0])
+        rotation_axis = np.cross(z_axis, direction_normalized)
+        rotation_angle = math.degrees(math.acos(np.dot(z_axis, direction_normalized)))
+
+        # Apply rotation if needed
+        if np.linalg.norm(rotation_axis) > 1e-6:
+            glRotatef(
+                rotation_angle, rotation_axis[0], rotation_axis[1], rotation_axis[2]
+            )
+
+    # Draw the cylinder
+    quadric = gluNewQuadric()
+
+    if length > 1e-6:
+        gluCylinder(quadric, radius, radius, length, 20, 20)
+
+    # Draw the hemispheres
+    glPushMatrix()
+    gluSphere(quadric, radius, 20, 20)  # Bottom hemisphere
+    glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(0, 0, length)
+    gluSphere(quadric, radius, 20, 20)  # Top hemisphere
+    glPopMatrix()
+
+    gluDeleteQuadric(quadric)
+
+    glPopMatrix()
+
+
 def render_scene(input: sceneInput):
-    jointsPositions, links = input
+    capsules, spheres, links = input
 
     # Draw chessboard
     draw_chessboard()
 
     # Draw spheres
-    for jointPosition, color in jointsPositions:
-        draw_sphere(jointPosition, color)
+    for sphere in spheres:
+        draw_sphere(sphere)
 
     # Draw cuboids
     for link in links:
         draw_cuboid(link)
+
+    # Draw capsules
+    for capsule in capsules:
+        draw_capsule(capsule)
 
 
 # return highlight of left, right, skip button, nopref button,
@@ -373,6 +438,8 @@ def label_preference(frames1, frames2, interval=1 / 60):
         # Render scene
         render_scene(frames2[frame_index])
 
+        glColor3f(0.5, 0.5, 1)
+
         # Reset viewport to full screen for drawing the buttons
         glViewport(0, 0, UI_width, UI_height)
 
@@ -504,6 +571,9 @@ def label_preference(frames1, frames2, interval=1 / 60):
 if __name__ == "__main__":
 
     def create_dummy_frame(frame_number):
+        capsules = [
+            (np.array([0.0, 0.0, 1.0]), np.array([0.0, 2.0, 1.0]), 0.2, (1, 1, 0.5))
+        ]
         jointsPositions = [
             (np.array([0.0, 0.0, 0.0]), (1, 0.5, 0.5)),
             (np.array([50.0, 0.0, 0.0]), (0.5, 1, 0.5)),
@@ -516,7 +586,7 @@ if __name__ == "__main__":
                 (0.5, 0.5, 1),
             )
         ]
-        return (jointsPositions, links)
+        return (capsules, jointsPositions, links)
 
     frames1 = [create_dummy_frame(i) for i in range(60)]
     frames2 = [create_dummy_frame(i) for i in range(60)]

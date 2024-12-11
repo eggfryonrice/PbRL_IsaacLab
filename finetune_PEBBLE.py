@@ -31,13 +31,14 @@ class Workspace(BaseWorkspace):
         self.labeled_feedback = 0
         self.step = 0
 
-        self.initialize_reward_model()
+        self.initialize_reward_model_humanT()
 
     def run(self):
         self.initialize_running()
         self.model_episode_reward = np.zeros(self.num_envs)
 
         self.obs_query = [[] for _ in range(self.num_envs)]
+        self.body_state_query = [[] for _ in range(self.num_envs)]
         self.action_query = [[] for _ in range(self.num_envs)]
 
         self.interact_count = 0
@@ -59,9 +60,12 @@ class Workspace(BaseWorkspace):
                 if self.total_feedback < self.cfg.max_feedback:
                     for i in done_idx:
                         self.reward_model.add_data(
-                            np.array(self.obs_query[i]), np.array(self.action_query[i])
+                            np.array(self.obs_query[i]),
+                            np.array(self.action_query[i]),
+                            np.array(self.body_state_query[i]),
                         )
                         self.obs_query[i] = []
+                        self.body_state_query[i] = []
                         self.action_query[i] = []
 
                 self.logger.log("train/episode", self.episode, self.step)
@@ -72,6 +76,7 @@ class Workspace(BaseWorkspace):
             # update obs_query, action_query and pic_query to be used to add in reward_model
             for i in range(self.num_envs):
                 self.obs_query[i].append(self.obs_np[i])
+                self.body_state_query[i].append(self.body_state_np[i])
                 self.action_query[i].append(self.action_np[i])
 
             # run training update

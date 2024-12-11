@@ -82,6 +82,8 @@ class LocomotionEnv(CustomRLEnv):
             self.robot.data.joint_vel,
         )
 
+        self.body_state = self.robot.data.body_state_w
+
         self.orientation_xx, self.orientation_xz = compute_intermediate_values(
             self.body_rotation[:, self._body_dof_idx]
         )
@@ -98,7 +100,7 @@ class LocomotionEnv(CustomRLEnv):
             ),
             dim=-1,
         )
-        observations = {"policy": obs}
+        observations = {"policy": obs, "body_state": self.body_state}
         return observations
 
     def _get_rewards(self) -> torch.Tensor:

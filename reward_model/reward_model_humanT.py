@@ -70,8 +70,7 @@ class RewardModel:
 
         self.construct_ensemble()
         self.inputs = []
-        self.raw_actions = []
-        self.img_inputs = []
+        self.body_states = []
         self.mb_size = mb_size
         self.origin_mb_size = mb_size
         self.train_batch_size = 128
@@ -113,11 +112,12 @@ class RewardModel:
     def set_batch(self, new_batch):
         self.mb_size = int(new_batch)
 
-    def add_data(self, obs, act):
+    def add_data(self, obs, act, body_state):
         if len(obs) < self.size_segment:
             return
         sa = np.concatenate([obs, act], axis=-1)
         self.inputs.append(sa)
+        self.body_states.append(body_state)
 
     def get_rank_probability(self, x_1, x_2):
         # get probability x_1 > x_2
@@ -249,13 +249,18 @@ class RewardModel:
         )
 
         sa1 = [self.inputs[i] for i in batch_index_1]
+        bs1 = [self.body_states[i] for i in batch_index_1]
         sa2 = [self.inputs[i] for i in batch_index_2]
+        bs2 = [self.body_states[i] for i in batch_index_2]
 
         starts1 = [
             np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1
         ]
         sa1 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa1, starts1)]
+        )
+        bs1 = np.array(
+            [arr[start : start + self.size_segment] for arr, start in zip(bs1, starts1)]
         )
 
         starts2 = [
@@ -264,8 +269,11 @@ class RewardModel:
         sa2 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
         )
+        bs2 = np.array(
+            [arr[start : start + self.size_segment] for arr, start in zip(bs2, starts2)]
+        )
 
-        return sa1, sa2
+        return sa1, sa2, bs1, bs2
 
     def get_near_on_policy_queries(self, mb_size=20):
         """
@@ -293,25 +301,31 @@ class RewardModel:
         )
 
         sa1 = [self.inputs[i] for i in batch_index_1]
+        bs1 = [self.body_states[i] for i in batch_index_1]
         sa2 = [self.inputs[i] for i in batch_index_2]
+        bs2 = [self.body_states[i] for i in batch_index_2]
 
         starts1 = [
             np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1
         ]
-
         sa1 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa1, starts1)]
+        )
+        bs1 = np.array(
+            [arr[start : start + self.size_segment] for arr, start in zip(bs1, starts1)]
         )
 
         starts2 = [
             np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2
         ]
-
         sa2 = np.array(
             [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
         )
+        bs2 = np.array(
+            [arr[start : start + self.size_segment] for arr, start in zip(bs2, starts2)]
+        )
 
-        return sa1, sa2
+        return sa1, sa2, bs1, bs2
 
     def put_queries(self, sa1, sa2, labels):
         total_sample = sa1.shape[0]
@@ -350,12 +364,16 @@ class RewardModel:
         sa1s = []
         sa2s = []
         while len(labels) < self.mb_size:
-            sa1, sa2 = self.get_queries(mb_size=1)
+            sa1, sa2, bs1, bs2 = self.get_queries(mb_size=1)
 
-            sa1, sa2 = sa1[0], sa2[0]
+            sa1, sa2, bs1, bs2 = sa1[0], sa2[0], bs1[0], bs2[0]
 
-            frames1 = self.env.unwrapped.obs_query_to_scene_input(sa1[:, : self.ds])
-            frames2 = self.env.unwrapped.obs_query_to_scene_input(sa2[:, : self.ds])
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(
+                sa1[:, : self.ds], bs1
+            )
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(
+                sa2[:, : self.ds], bs2
+            )
             label = my_utils.label_preference(
                 frames1, frames2, self.env.unwrapped.step_dt
             )
@@ -373,14 +391,23 @@ class RewardModel:
         sa1s = []
         sa2s = []
         while len(labels) < self.mb_size:
-            sa1, sa2 = self.get_queries(mb_size=self.large_batch)
+            sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
 
             _, disagree = self.get_rank_probability(sa1, sa2)
             top_index = (-disagree).argsort()[0]
-            sa1, sa2 = sa1[top_index], sa2[top_index]
+            sa1, sa2, bs1, bs2 = (
+                sa1[top_index],
+                sa2[top_index],
+                bs1[top_index],
+                bs2[top_index],
+            )
 
-            frames1 = self.env.unwrapped.obs_query_to_scene_input(sa1[:, : self.ds])
-            frames2 = self.env.unwrapped.obs_query_to_scene_input(sa2[:, : self.ds])
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(
+                sa1[:, : self.ds], bs1
+            )
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(
+                sa2[:, : self.ds], bs2
+            )
             label = my_utils.label_preference(
                 frames1, frames2, self.env.unwrapped.step_dt
             )
@@ -398,14 +425,25 @@ class RewardModel:
         sa1s = []
         sa2s = []
         while len(labels) < self.mb_size:
-            sa1, sa2 = self.get_near_on_policy_queries(mb_size=self.large_batch)
+            sa1, sa2, bs1, bs2 = self.get_near_on_policy_queries(
+                mb_size=self.large_batch
+            )
 
             _, disagree = self.get_rank_probability(sa1, sa2)
             top_index = (-disagree).argsort()[0]
-            sa1, sa2 = sa1[top_index], sa2[top_index]
+            sa1, sa2, bs1, bs2 = (
+                sa1[top_index],
+                sa2[top_index],
+                bs1[top_index],
+                bs2[top_index],
+            )
 
-            frames1 = self.env.unwrapped.obs_query_to_scene_input(sa1[:, : self.ds])
-            frames2 = self.env.unwrapped.obs_query_to_scene_input(sa2[:, : self.ds])
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(
+                sa1[:, : self.ds], bs1
+            )
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(
+                sa2[:, : self.ds], bs2
+            )
             label = my_utils.label_preference(
                 frames1, frames2, self.env.unwrapped.step_dt
             )
