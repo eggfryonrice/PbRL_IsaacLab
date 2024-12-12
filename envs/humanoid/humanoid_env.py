@@ -26,9 +26,8 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     episode_length_s = 25.0 + 1e-6
     decimation = 2
     action_space = 42
-    observation_space = 96
+    observation_space = 54
     state_space = 0
-    reward_scale = 0.1
 
     # simulation
     sim: SimulationCfg = SimulationCfg(dt=0.0125, render_interval=decimation)
@@ -94,19 +93,13 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     PD_Kp = 1
     PD_Kd = 0.1
 
-    heading_weight: float = 0.5
-    up_weight: float = 0.1
+    termination_height: float = 0.6
 
-    energy_cost_scale: float = 0.05
-    actions_cost_scale: float = 0.01
-    alive_reward_scale: float = 2.0
     dof_vel_scale: float = 0.1
-
-    death_cost: float = -1.0
-    termination_height: float = 0.8
-
     angular_velocity_scale: float = 0.25
-    contact_force_scale: float = 0.01
+
+    stand_height: float = 1.2
+    move_speed: float = 2.0
 
 
 def quaternion_multiply(q1, q2):
@@ -156,7 +149,7 @@ class HumanoidEnv(LocomotionEnv):
             "upper_waist": (0.06, (-0.01, -0.12, -0.12), (-0.01, 0.12, -0.12)),
             "head": (0.09, (0, 0, 0), (0, 0, 0)),
             "lower_waist": (0.06, (0.0, -0.12, 0.0), (0.0, 0.12, 0.0)),
-            "butt": (0.09, (-0.02, -0.16, 0.0), (-0.02, 0.16, 0.0)),
+            "butt": (0.09, (-0.02, -0.14, 0.0), (-0.02, 0.14, 0.0)),
             "right_thigh": (0.06, (0.0, -0.002, 0.06), (0.0, 0.012, -0.4)),
             "right_shin": (0.05, (0.0, 0.0, 0.049), (0.0, 0.0, -0.349)),
             "right_right_foot": (0.027, (-0.097, -0.017, 0.0), (0.167, -0.043, 0.0)),

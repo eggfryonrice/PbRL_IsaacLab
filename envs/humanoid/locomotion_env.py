@@ -61,8 +61,12 @@ class LocomotionEnv(CustomRLEnv):
         self.basis_vec0 = self.heading_vec.clone()
         self.basis_vec1 = self.up_vec.clone()
 
-        self._joint_pos_lowerbound = self.robot.data.soft_joint_pos_limits[0, :, 0]
-        self._joint_pos_upperbound = self.robot.data.soft_joint_pos_limits[0, :, 1]
+        self._joint_pos_lowerbound = self.robot.data.soft_joint_pos_limits[
+            0, :, 0
+        ].unsqueeze(0)
+        self._joint_pos_upperbound = self.robot.data.soft_joint_pos_limits[
+            0, :, 1
+        ].unsqueeze(0)
 
     def _setup_scene(self):
         self.robot = Articulation(self.cfg.robot)
@@ -83,18 +87,18 @@ class LocomotionEnv(CustomRLEnv):
         self.actions = actions.clone()
 
     def _apply_action(self):
-        target_position = self.actions[:, : len(self._joint_dof_idx)]
-        # target position ranges from lower limit -1 to upper limit + 1
-        target_position = (
-            (target_position + 1)
-            / 2
-            * (self._joint_pos_upperbound - self._joint_pos_lowerbound + 2)
-            + self._joint_pos_lowerbound
-            - 1
+        action_position = self.actions[:, : len(self._joint_dof_idx)]
+        margin = 0.2
+        # lower bound are all negative, upper bound are all positive, default is 0
+        # target is 0 when action is 0, target is lowerbound - margin when action is -1,
+        # upperbound + margin when action is 1 and between [-1,0], [0,1] is line
+        target_position = torch.where(
+            action_position > 0,
+            action_position * (self._joint_pos_upperbound + margin),
+            -action_position * (self._joint_pos_lowerbound - margin),
         )
         target_velocity = (
-            self.actions[:, len(self._joint_dof_idx) :]
-            / self.cfg.angular_velocity_scale
+            self.actions[:, len(self._joint_dof_idx) :] / self.cfg.dof_vel_scale
         )
         forces = self.joint_gears * self.cfg.PD_Kp * (
             target_position - self.robot.data.joint_pos
@@ -151,18 +155,15 @@ class LocomotionEnv(CustomRLEnv):
         obs = torch.cat(
             (
                 self.dof_pos_scaled,
+                self.dof_vel * self.cfg.dof_vel_scale,
                 self.torso_position[:, 2].view(-1, 1),
-                self.vel_loc,  # difference btwn vel_loc and velocity?
+                self.vel_loc,
                 self.angvel_loc * self.cfg.angular_velocity_scale,
                 normalize_angle(self.yaw).unsqueeze(-1),
                 normalize_angle(self.roll).unsqueeze(-1),
-                normalize_angle(self.angle_to_target).unsqueeze(
-                    -1
-                ),  # difference btwn pitch and velocity?
+                normalize_angle(self.angle_to_target).unsqueeze(-1),
                 self.up_proj.unsqueeze(-1),
                 self.heading_proj.unsqueeze(-1),
-                self.dof_vel * self.cfg.dof_vel_scale,
-                self.actions,
             ),
             dim=-1,
         )
@@ -171,24 +172,13 @@ class LocomotionEnv(CustomRLEnv):
 
     def _get_rewards(self) -> torch.Tensor:
         total_reward = compute_rewards(
-            self.actions,
-            self.reset_terminated,
-            self.cfg.up_weight,
-            self.cfg.heading_weight,
-            self.heading_proj,
+            self.torso_position[:, 2],
+            self.cfg.stand_height,
             self.up_proj,
-            self.dof_vel,
-            self.dof_pos_scaled,
-            self.potentials,
-            self.prev_potentials,
-            self.cfg.actions_cost_scale,
-            self.cfg.energy_cost_scale,
-            self.cfg.dof_vel_scale,
-            self.cfg.death_cost,
-            self.cfg.alive_reward_scale,
-            self.motor_effort_ratio,
+            self.vel_loc[:, 0],
+            self.cfg.move_speed,
         )
-        return total_reward / self.cfg.reward_scale
+        return total_reward
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         self._compute_intermediate_values()
@@ -220,61 +210,81 @@ class LocomotionEnv(CustomRLEnv):
 
 
 @torch.jit.script
+def tolerance_gaussian(
+    x: torch.Tensor,
+    lower: float,
+    upper: float,
+    margin: float = 0.0,
+    value_at_margin: float = 0.1,
+) -> torch.Tensor:
+    in_bounds = (lower <= x) & (x <= upper)
+
+    if margin == 0.0:
+        return torch.where(
+            in_bounds,
+            torch.tensor(1.0, dtype=x.dtype, device=x.device),
+            torch.tensor(0.0, dtype=x.dtype, device=x.device),
+        )
+
+    scale = margin / torch.sqrt(
+        -2 * torch.log(torch.tensor(value_at_margin, dtype=x.dtype, device=x.device))
+    )
+
+    d = torch.where(x < lower, lower - x, x - upper) / scale
+    value = torch.where(
+        in_bounds,
+        torch.tensor(1.0, dtype=x.dtype, device=x.device),
+        torch.exp(-0.5 * d**2),
+    )
+    return value
+
+
+@torch.jit.script
+def tolerance_linear(
+    x: torch.Tensor,
+    lower: float,
+    upper: float,
+    margin: float = 0.0,
+    value_at_margin: float = 0.1,
+) -> torch.Tensor:
+    in_bounds = (lower <= x) & (x <= upper)
+    if margin == 0.0:
+        return torch.where(
+            in_bounds,
+            torch.tensor(1.0, dtype=x.dtype),
+            torch.tensor(0.0, dtype=x.dtype),
+        )
+
+    d = torch.where(x < lower, lower - x, x - upper) / margin
+    slope = 1 - value_at_margin
+    value = torch.where(
+        in_bounds,
+        torch.tensor(1.0, dtype=x.dtype),
+        torch.clamp(1.0 - slope * d, min=0.0),
+    )
+    return value
+
+
+@torch.jit.script
 def compute_rewards(
-    actions: torch.Tensor,
-    reset_terminated: torch.Tensor,
-    up_weight: float,
-    heading_weight: float,
-    heading_proj: torch.Tensor,
+    torso_height: torch.Tensor,
+    stand_height: float,
     up_proj: torch.Tensor,
-    dof_vel: torch.Tensor,
-    dof_pos_scaled: torch.Tensor,
-    potentials: torch.Tensor,
-    prev_potentials: torch.Tensor,
-    actions_cost_scale: float,
-    energy_cost_scale: float,
-    dof_vel_scale: float,
-    death_cost: float,
-    alive_reward_scale: float,
-    motor_effort_ratio: torch.Tensor,
+    torso_speed: torch.Tensor,
+    move_speed: float,
 ):
-    heading_weight_tensor = torch.ones_like(heading_proj) * heading_weight
-    heading_reward = torch.where(
-        heading_proj > 0.8, heading_weight_tensor, heading_weight * heading_proj / 0.8
+    # stand reward
+    standing = tolerance_gaussian(
+        torso_height, stand_height, float("inf"), stand_height / 2, 0.1
     )
+    upright = (1 + up_proj) / 2
+    stand_reward = (3 * standing + upright) / 4
 
-    # aligning up axis of robot and environment
-    up_reward = torch.zeros_like(heading_reward)
-    up_reward = torch.where(up_proj > 0.93, up_reward + up_weight, up_reward)
-
-    # energy penalty for movement
-    # actions_cost = torch.sum(actions**2, dim=-1)
-    # electricity_cost = torch.sum(
-    #     torch.abs(actions * dof_vel * dof_vel_scale) * motor_effort_ratio.unsqueeze(0),
-    #     dim=-1,
-    # )
-
-    # dof at limit cost
-    dof_at_limit_cost = torch.sum(dof_pos_scaled > 0.98, dim=-1)
-
-    # reward for duration of staying alive
-    alive_reward = torch.ones_like(potentials) * alive_reward_scale
-    progress_reward = potentials - prev_potentials
-
-    total_reward = (
-        progress_reward
-        + alive_reward
-        + up_reward
-        + heading_reward
-        # - actions_cost_scale * actions_cost
-        # - energy_cost_scale * electricity_cost
-        - dof_at_limit_cost
+    # move reward
+    move_reward = tolerance_linear(
+        torso_speed, move_speed, float("inf"), move_speed / 2, 0.5
     )
-    # adjust reward for fallen agents
-    total_reward = torch.where(
-        reset_terminated, torch.ones_like(total_reward) * death_cost, total_reward
-    )
-    return total_reward
+    return stand_reward * (5 * move_reward + 1) / 6
 
 
 @torch.jit.script
