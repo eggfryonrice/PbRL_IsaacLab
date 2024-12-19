@@ -99,7 +99,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     angular_velocity_scale: float = 0.25
 
     stand_height: float = 1.2
-    move_speed: float = 2.0
+    move_speed: float = 1.0
 
 
 def quaternion_multiply(q1, q2):

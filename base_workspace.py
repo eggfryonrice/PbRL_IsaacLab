@@ -110,7 +110,6 @@ class BaseWorkspace(object):
 
     def initialize_reward_model_humanT(self):
         self.reward_model = reward_model.reward_model_humanT.RewardModel(
-            dt=self.env.unwrapped.step_dt,
             ds=self.env.observation_space.shape[0],
             da=self.env.action_space.shape[0],
             ensemble_size=self.cfg.ensemble_size,
@@ -119,8 +118,8 @@ class BaseWorkspace(object):
             size_segment=self.cfg.segment,
             activation=self.cfg.activation,
             large_batch=self.cfg.large_batch,
-            near_range=self.cfg.near_range,
             env=self.env,
+            max_inputs_size=self.cfg.max_query_save,
         )
 
     def learn_reward(self, first_flag=0):
@@ -135,10 +134,6 @@ class BaseWorkspace(object):
                 labeled_queries = self.reward_model.uniform_sampling()
             elif self.cfg.feed_type == 1:
                 labeled_queries = self.reward_model.disagreement_sampling()
-            elif self.cfg.feed_type == 2:
-                labeled_queries = (
-                    self.reward_model.near_on_policy_disagreement_sampling()
-                )
             elif self.cfg.feed_type == 3:
                 labeled_queries = self.reward_model.high_reward_sampling()
             else:

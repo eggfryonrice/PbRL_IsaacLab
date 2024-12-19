@@ -30,7 +30,6 @@ def gen_net(in_size=1, out_size=1, H=128, n_layers=3, activation="tanh"):
 class RewardModel:
     def __init__(
         self,
-        dt,
         ds,
         da,
         ensemble_size=3,
@@ -41,8 +40,8 @@ class RewardModel:
         activation="tanh",
         capacity=5e5,
         large_batch=1,
-        near_range=10,
         env=None,
+        max_inputs_size=1e5,
     ):
         # train data is trajectories, must process to sa and s..
         self.ds = ds
@@ -82,9 +81,10 @@ class RewardModel:
         self.best_action = []
         self.large_batch = large_batch
 
-        self.near_range = near_range
-
         self.env = env
+
+        self.max_inputs_size = max_inputs_size
+        self.inputs_size = 0
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -118,6 +118,12 @@ class RewardModel:
         sa = np.concatenate([obs, act], axis=-1)
         self.inputs.append(sa)
         self.body_states.append(body_state)
+
+        self.inputs_size += len(obs)
+        while self.inputs_size > self.max_inputs_size:
+            self.inputs_size -= len(self.inputs[0])
+            self.inputs.pop(0)
+            self.body_states.pop(0)
 
     def get_rank_probability(self, x_1, x_2):
         # get probability x_1 > x_2
@@ -275,58 +281,6 @@ class RewardModel:
 
         return sa1, sa2, bs1, bs2
 
-    def get_near_on_policy_queries(self, mb_size=20):
-        """
-        get latest queries
-        randomly sample queries form (max_len - near_range) to (max_len-1) th query
-        """
-        max_len = len(self.inputs)
-
-        near_inputs = self.inputs
-        if max_len > self.near_range:
-            max_len = self.near_range
-            near_inputs = self.inputs[max_len - self.near_range, max_len]
-
-        # Select batch indices proportional to the length of each trajectory
-        len_traj_list = [len(traj) for traj in near_inputs]
-        total_length = sum(len_traj_list)
-        probabilities = np.array(len_traj_list) / total_length
-
-        # Sample batch indices with probability proportional to trajectory length
-        batch_index_1 = np.random.choice(
-            max_len, size=mb_size, replace=True, p=probabilities
-        )
-        batch_index_2 = np.random.choice(
-            max_len, size=mb_size, replace=True, p=probabilities
-        )
-
-        sa1 = [self.inputs[i] for i in batch_index_1]
-        bs1 = [self.body_states[i] for i in batch_index_1]
-        sa2 = [self.inputs[i] for i in batch_index_2]
-        bs2 = [self.body_states[i] for i in batch_index_2]
-
-        starts1 = [
-            np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa1
-        ]
-        sa1 = np.array(
-            [arr[start : start + self.size_segment] for arr, start in zip(sa1, starts1)]
-        )
-        bs1 = np.array(
-            [arr[start : start + self.size_segment] for arr, start in zip(bs1, starts1)]
-        )
-
-        starts2 = [
-            np.random.randint(0, len(arr) - self.size_segment + 1) for arr in sa2
-        ]
-        sa2 = np.array(
-            [arr[start : start + self.size_segment] for arr, start in zip(sa2, starts2)]
-        )
-        bs2 = np.array(
-            [arr[start : start + self.size_segment] for arr, start in zip(bs2, starts2)]
-        )
-
-        return sa1, sa2, bs1, bs2
-
     def put_queries(self, sa1, sa2, labels):
         total_sample = sa1.shape[0]
         next_index = self.buffer_index + total_sample
@@ -392,42 +346,6 @@ class RewardModel:
         sa2s = []
         while len(labels) < self.mb_size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
-
-            _, disagree = self.get_rank_probability(sa1, sa2)
-            top_index = (-disagree).argsort()[0]
-            sa1, sa2, bs1, bs2 = (
-                sa1[top_index],
-                sa2[top_index],
-                bs1[top_index],
-                bs2[top_index],
-            )
-
-            frames1 = self.env.unwrapped.obs_query_to_scene_input(
-                sa1[:, : self.ds], bs1
-            )
-            frames2 = self.env.unwrapped.obs_query_to_scene_input(
-                sa2[:, : self.ds], bs2
-            )
-            label = my_utils.label_preference(
-                frames1, frames2, self.env.unwrapped.step_dt
-            )
-            if label != None:
-                labels.append([label])
-                sa1s.append(sa1)
-                sa2s.append(sa2)
-
-        self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
-
-        return len(labels)
-
-    def near_on_policy_disagreement_sampling(self):
-        labels = []
-        sa1s = []
-        sa2s = []
-        while len(labels) < self.mb_size:
-            sa1, sa2, bs1, bs2 = self.get_near_on_policy_queries(
-                mb_size=self.large_batch
-            )
 
             _, disagree = self.get_rank_probability(sa1, sa2)
             top_index = (-disagree).argsort()[0]
