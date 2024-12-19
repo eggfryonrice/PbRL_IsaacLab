@@ -11,11 +11,11 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 123
+seed: 1
 num_envs: 10
 
 # training
-num_train_steps: 5e5
+num_train_steps: 1e6
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
@@ -26,11 +26,11 @@ topK: 5
 reset_update: 100
 
 # reward learning
-max_feedback: 400
-reward_batch: 20
+max_feedback: 200
+reward_batch: 5
 segment: 50
 activation: tanh
-num_interact: 20000 # how often we label preferences
+num_interact: 10000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
 feed_type: 1
@@ -60,4 +60,4 @@ hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/pebble_scriptedT/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_lr${agent.actor_lr}/teacher_b${teacher_beta}_g${teacher_gamma}_m${teacher_eps_mistake}_s${teacher_eps_skip}_e${teacher_eps_equal}/label_smooth_${label_margin}/schedule_${reward_schedule}/${experiment}_init${num_seed_steps}_unsup${num_unsup_steps}_inter${num_interact}_maxfeed${max_feedback}_seg${segment}_act${activation}_Rlr${reward_lr}_Rbatch${reward_batch}_Rupdate${reward_update}_en${ensemble_size}_sample${feed_type}_large_batch${large_batch}_seed${seed}
+    dir: ./exp/${env}/pebble_scriptedT/feed_type${feed_type}_max_feedback${max_feedback}_seed${seed}

@@ -15,6 +15,7 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import numpy as np
+import torch
 import time
 import hydra
 
@@ -68,6 +69,9 @@ class Workspace(BaseWorkspace):
             self.reallocate_datas()
 
             self.step += self.num_envs
+
+            if self.step % self.cfg.save_model_freq == 0:
+                self.agent.save(self.work_dir, self.step)
 
         self.agent.save(self.work_dir, self.step)
 

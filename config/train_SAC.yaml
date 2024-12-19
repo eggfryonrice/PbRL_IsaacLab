@@ -10,11 +10,11 @@ experiment: sac
 agent_name: sac
 
 device: cuda
-seed: 23
-num_envs: 100
+seed: 1
+num_envs: 10
 
 # training
-num_train_steps: 2e7 # 5e5
+num_train_steps: 5e6 # 5e5
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
@@ -33,10 +33,11 @@ video_interval: 10000
 video_length: 1000
 
 save_model: true
+save_model_freq: 5e5
 
 # hydra configuration
 hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/sac/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_B${agent.batch_size}_tau${agent.critic_tau}/${experiment}_unsup${num_unsup_steps}_topk${topK}_${experiment}_lr${agent.actor_lr}_temp${agent.init_temperature}_seed${seed}
+    dir: ./exp/${env}/sac/num_envs${num_envs}_seed${num_seed_steps}_unsup${num_unsup_steps}_actor_lr${agent.actor_lr}_critic_lr${agent.critic_lr}_bs${agent.alpha_lr}_seed${seed}

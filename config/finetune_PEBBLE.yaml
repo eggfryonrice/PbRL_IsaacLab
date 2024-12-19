@@ -16,10 +16,10 @@ num_envs: 10
 
 # pretrained model path
 pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid"
-pretrained_model_step: 3000000
+pretrained_model_step: 5000000
 
 # training
-num_train_steps: 3e5
+num_train_steps: 2e6
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
@@ -28,16 +28,12 @@ num_gradient_update: 1
 reward_alpha: 1
 reward_beta: 1
 
-# evaluation
-eval_frequency: 100000000
-num_eval_episodes: 10
-
 # reward learning
-max_feedback: 100
+max_feedback: 300
 reward_batch: 10
 segment: 20
 activation: tanh
-num_interact: 20000 # how often we label preferences
+num_interact: 50000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
 feed_type: 1
@@ -65,4 +61,4 @@ hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/finetune_pebble/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_lr${agent.actor_lr}/teacher_b${teacher_beta}_g${teacher_gamma}_m${teacher_eps_mistake}_s${teacher_eps_skip}_e${teacher_eps_equal}/label_smooth_${label_margin}/schedule_${reward_schedule}/${experiment}_init${num_seed_steps}_inter${num_interact}_maxfeed${max_feedback}_seg${segment}_act${activation}_Rlr${reward_lr}_Rbatch${reward_batch}_Rupdate${reward_update}_en${ensemble_size}_sample${feed_type}_large_batch${large_batch}_seed${seed}
+    dir: ./exp/${env}/finetune_pebble/max_feedback${max_feedback}_reward_batch${reward_batch}_num_interact${num_interact}_seed${seed}

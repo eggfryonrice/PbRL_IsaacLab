@@ -23,14 +23,14 @@ from ..custom_rl_env import CustomRLEnvCfg
 @configclass
 class HumanoidEnvCfg(CustomRLEnvCfg):
     # env
-    episode_length_s = 25.0 + 1e-6
+    episode_length_s = 15.0
     decimation = 2
     action_space = 42
     observation_space = 54
     state_space = 0
 
     # simulation
-    sim: SimulationCfg = SimulationCfg(dt=0.0125, render_interval=decimation)
+    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="plane",

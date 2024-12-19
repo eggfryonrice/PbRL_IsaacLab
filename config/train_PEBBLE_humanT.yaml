@@ -3,7 +3,7 @@ defaults:
   - sac
 
 # env
-env: walker2d
+env: humanoid
 gradient_update: 1
 
 # Basic setup
@@ -11,39 +11,39 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 12345
+seed: 0
 num_envs: 10
 
 # training
-num_train_steps: 5e5
+num_train_steps: 5e6
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
 
 # for use alpha * env reward + beta * learned reward as reward
-reward_alpha: 0.0
-reward_beta: 1.0
+reward_alpha: 0.5
+reward_beta: 0.5
 
 # evaluation
 eval_frequency: 100000000
 num_eval_episodes: 10
 
 # unsupervise
-num_unsup_steps: 20000
+num_unsup_steps: 100000
 topK: 5
 reset_update: 100
 
 # reward learning
-max_feedback: 300
+max_feedback: 800
 reward_batch: 10
 segment: 20
 activation: tanh
-num_interact: 10000 # how often we label preferences
+num_interact: 50000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
 feed_type: 1
 ensemble_size: 3
-large_batch: 5 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
+large_batch: 10 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
 label_margin: 0.0
 teacher_beta: -1
 teacher_gamma: 1
@@ -66,4 +66,4 @@ hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/pebble_humanT/H${diag_gaussian_actor.hidden_dim}_L${diag_gaussian_actor.hidden_depth}_lr${agent.actor_lr}/teacher_b${teacher_beta}_g${teacher_gamma}_m${teacher_eps_mistake}_s${teacher_eps_skip}_e${teacher_eps_equal}/label_smooth_${label_margin}/schedule_${reward_schedule}/${experiment}_init${num_seed_steps}_unsup${num_unsup_steps}_inter${num_interact}_maxfeed${max_feedback}_seg${segment}_act${activation}_Rlr${reward_lr}_Rbatch${reward_batch}_Rupdate${reward_update}_en${ensemble_size}_sample${feed_type}_large_batch${large_batch}_seed${seed}
+    dir: ./exp/${env}/pebble_humanT/max_feedback${max_feedback}_reward_batch${reward_batch}_large_batch${large_batch}_num_interact${num_interact}_feed_type${feed_type}_alpha${reward_alpha}_beta${reward_beta}_seed${seed}

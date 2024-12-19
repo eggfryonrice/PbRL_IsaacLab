@@ -69,21 +69,21 @@ class Workspace(object):
             float(self.env.action_space.high.max()),
         ]
         self.agent = hydra.utils.instantiate(cfg.agent)
-        self.agent.load(self.work_dir, int(self.cfg.num_train_steps))
-        # self.agent.load(self.work_dir, 10)
+        # self.agent.load(self.work_dir, int(self.cfg.num_train_steps))
+        self.agent.load(self.work_dir, 1000000)
 
     def run(self):
         episode_done = np.zeros(self.num_envs)
-        obs = self.env.reset()
+        obs, _ = self.env.reset()
         if isinstance(obs, tuple):
             obs = obs[0]
         steps = 0
 
-        while steps < 1000:
+        while steps < 10000:
             # reset done environment
             done_idx = np.where(episode_done)[0]
             if done_idx.size != 0:
-                obs[done_idx] = self.env.get_obs(done_idx)
+                obs[done_idx], _ = self.env.get_obs(done_idx)
 
             with my_utils.eval_mode(self.agent):
                 action = self.agent.act(obs, sample=True)
@@ -101,7 +101,7 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="train_SAC", version_base="1.1")
+@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
 def main(cfg):
 
     workspace = Workspace(cfg)
