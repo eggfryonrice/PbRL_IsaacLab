@@ -139,6 +139,8 @@ class BaseWorkspace(object):
                 labeled_queries = (
                     self.reward_model.near_on_policy_disagreement_sampling()
                 )
+            elif self.cfg.feed_type == 3:
+                labeled_queries = self.reward_model.high_reward_sampling()
             else:
                 raise NotImplementedError
 

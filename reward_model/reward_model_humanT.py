@@ -456,6 +456,44 @@ class RewardModel:
 
         return len(labels)
 
+    def high_reward_sampling(self):
+        labels = []
+        sa1s = []
+        sa2s = []
+        while len(labels) < self.mb_size:
+            sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
+            sa = np.concatenate((sa1, sa2), axis=0)
+            bs = np.concatenate((bs1, bs2), axis=0)
+
+            r = np.array([self.r_hat_batch(sa) for sa in sa]).sum(axis=1).squeeze()
+
+            top_index1 = (-r).argsort()[0]
+            top_index2 = (-r).argsort()[1]
+            sa1, sa2, bs1, bs2 = (
+                sa[top_index1],
+                sa[top_index2],
+                bs[top_index1],
+                bs[top_index2],
+            )
+
+            frames1 = self.env.unwrapped.obs_query_to_scene_input(
+                sa1[:, : self.ds], bs1
+            )
+            frames2 = self.env.unwrapped.obs_query_to_scene_input(
+                sa2[:, : self.ds], bs2
+            )
+            label = my_utils.label_preference(
+                frames1, frames2, self.env.unwrapped.step_dt
+            )
+            if label != None:
+                labels.append([label])
+                sa1s.append(sa1)
+                sa2s.append(sa2)
+
+        self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
+
+        return len(labels)
+
     def train_reward(self):
         ensemble_losses = [[] for _ in range(self.de)]
         ensemble_acc = np.array([0 for _ in range(self.de)])

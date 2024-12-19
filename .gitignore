@@ -4,6 +4,7 @@ exp_bpref/
 experiment.py
 .thumbs/
 tmp/
+train.sh
 
 
 # Byte-compiled / optimized / DLL files
