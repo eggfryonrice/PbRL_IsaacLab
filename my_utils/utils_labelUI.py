@@ -7,11 +7,27 @@ import math
 
 
 # Camera parameters
-camera_eye = [50, -400, 30]
-camera_target = [50, 0, 40]
+camera_target = np.array([50, 0, 40], dtype=np.float32)
+camera_eye = np.array([50, -400, 40], dtype=np.float32)
+theta1 = 0  # Vertical rotation (up-down)
+theta2 = 0  # Horizontal rotation (left-right)
+distance = 400
+
+theta1_min = np.radians(-5)
+theta1_max = np.radians(85)
+rot_speed = 0.1
+
+
+def update_camera_eye():
+    global camera_eye
+    x = distance * np.cos(theta1) * np.sin(theta2)
+    y = -distance * np.cos(theta1) * np.cos(theta2)
+    z = distance * np.sin(theta1)
+    camera_eye = camera_target + np.array([x, y, z], dtype=np.float32)
+
 
 # size multiplier
-zoom = 40
+zoom = 50
 
 # interval multiplier - gets slower times slower
 slower = 3
@@ -228,6 +244,7 @@ def render_scene(input: sceneInput):
 # return highlight of left, right, skip button, nopref button,
 # and running state, choice
 def event_handler():
+    global theta1, theta2
     mouse_pos = pygame.mouse.get_pos()
     mouse_pos = (mouse_pos[0], UI_height - mouse_pos[1])
     highlight_left_scene = False
@@ -282,6 +299,20 @@ def event_handler():
                 choice = -1  # No Preference
             else:
                 running = True
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_UP] or keys[pygame.K_w]:  # UP or W
+        theta1 += rot_speed  # Rotate upward
+    if keys[pygame.K_DOWN] or keys[pygame.K_s]:  # DOWN or S
+        theta1 -= rot_speed  # Rotate downward
+    if keys[pygame.K_LEFT] or keys[pygame.K_a]:  # LEFT or A
+        theta2 -= rot_speed  # Rotate left
+    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:  # RIGHT or D
+        theta2 += rot_speed  # Rotate right
+
+    theta1 = max(theta1_min, min(theta1_max, theta1))
+
+    update_camera_eye()
 
     return (
         highlight_left_scene,
