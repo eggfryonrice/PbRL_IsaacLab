@@ -88,7 +88,7 @@ class LocomotionEnv(CustomRLEnv):
 
     def _apply_action(self):
         action_position = self.actions[:, : len(self._joint_dof_idx)]
-        margin = 0.2
+        margin = 0.0
         # lower bound are all negative, upper bound are all positive, default is 0
         # target is 0 when action is 0, target is lowerbound - margin when action is -1,
         # upperbound + margin when action is 1 and between [-1,0], [0,1] is line
