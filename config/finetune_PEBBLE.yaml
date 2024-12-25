@@ -49,6 +49,7 @@ teacher_eps_equal: 0.1
 reward_schedule: 0
 
 max_query_save: 5e5
+reward_model_capacity: 200
 
 load_reward_model: true 
 

@@ -120,6 +120,7 @@ class BaseWorkspace(object):
             large_batch=self.cfg.large_batch,
             env=self.env,
             max_inputs_size=self.cfg.max_query_save,
+            capacity=self.cfg.reward_model_capacity,
         )
 
     def learn_reward(self, first_flag=0):
