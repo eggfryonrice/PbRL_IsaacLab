@@ -33,6 +33,9 @@ class Workspace(BaseWorkspace):
 
         self.initialize_reward_model_humanT()
 
+        if cfg.load_reward_model:
+            self.reward_model.load(cfg.pretrained_model_dir, cfg.pretrained_model_step)
+
     def run(self):
         self.initialize_running()
         self.model_episode_reward = np.zeros(self.num_envs)
@@ -140,7 +143,9 @@ class Workspace(BaseWorkspace):
 
             if self.step % self.cfg.save_model_freq == 0:
                 self.agent.save(self.work_dir, self.step)
+                self.reward_model.save(self.work_dir, self.step)
 
+        self.agent.save(self.work_dir, self.step)
         self.reward_model.save(self.work_dir, self.step)
 
 

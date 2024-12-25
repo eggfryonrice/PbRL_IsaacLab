@@ -16,27 +16,27 @@ num_envs: 10
 
 # pretrained model path
 pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid"
-pretrained_model_step: 5000000
+pretrained_model_step: 10000000
 
 # training
-num_train_steps: 2e6
+num_train_steps: 1e7
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
 
 # use alpha * env reward + beta * learned reward as reward
-reward_alpha: 1
+reward_alpha: 0
 reward_beta: 1
 
 # reward learning
-max_feedback: 300
+max_feedback: 800
 reward_batch: 10
-segment: 20
+segment: 40
 activation: tanh
 num_interact: 50000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
-feed_type: 1
+feed_type: 3
 ensemble_size: 3
 large_batch: 10 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
 label_margin: 0.0
@@ -49,6 +49,8 @@ teacher_eps_equal: 0.1
 reward_schedule: 0
 
 max_query_save: 5e5
+
+load_reward_model: true 
 
 # logger
 log_frequency: 10000
