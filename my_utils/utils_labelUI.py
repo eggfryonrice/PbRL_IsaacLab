@@ -29,8 +29,8 @@ def update_camera_eye():
 # size multiplier
 zoom = 50
 
-# interval multiplier - gets slower times slower
-slower = 3
+# interval multiplier - gets (slower) times slower
+slower = 2
 
 # primitive size
 sphere_radius = 3

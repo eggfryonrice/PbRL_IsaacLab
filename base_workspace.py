@@ -94,6 +94,7 @@ class BaseWorkspace(object):
             window=self.num_envs,
             alpha=self.cfg.reward_alpha,
             beta=self.cfg.reward_beta,
+            gamma=self.cfg.reward_gamma,
         )
 
     def initialize_reward_model_scriptedT(self):
@@ -106,6 +107,8 @@ class BaseWorkspace(object):
             size_segment=self.cfg.segment,
             activation=self.cfg.activation,
             large_batch=self.cfg.large_batch,
+            env=self.env,
+            mirror=self.cfg.mirror,
         )
 
     def initialize_reward_model_humanT(self):
@@ -121,6 +124,7 @@ class BaseWorkspace(object):
             env=self.env,
             max_inputs_size=self.cfg.max_query_save,
             capacity=self.cfg.reward_model_capacity,
+            mirror=self.cfg.mirror,
         )
 
     def learn_reward(self, first_flag=0):
@@ -144,6 +148,7 @@ class BaseWorkspace(object):
         self.labeled_feedback += labeled_queries
 
         train_acc = 0
+        step_cnt = 0
         if self.labeled_feedback > 0:
             # update reward
             for _ in range(self.cfg.reward_update):
@@ -153,10 +158,12 @@ class BaseWorkspace(object):
                     train_acc = self.reward_model.train_reward()
                 total_acc = np.mean(train_acc)
 
+                step_cnt += 1
+
                 if total_acc > 0.97:
                     break
 
-        print("Reward function is updated!! ACC: " + str(total_acc))
+        print(f"Reward function is updated!! STEPs: {step_cnt}, ACC: {total_acc}")
 
     def initialize_running(self):
         self.episode = 0

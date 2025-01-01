@@ -6,7 +6,15 @@ class ReplayBuffer(object):
     """Buffer to store environment transitions."""
 
     def __init__(
-        self, obs_shape, action_shape, capacity, device, window=1, alpha=1, beta=0
+        self,
+        obs_shape,
+        action_shape,
+        capacity,
+        device,
+        window=1,
+        alpha=1,
+        beta=0,
+        gamma=0,
     ):
         self.capacity = capacity
         self.device = device
@@ -20,7 +28,7 @@ class ReplayBuffer(object):
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.rewards_env = np.empty((capacity, 1), dtype=np.float32)
         self.rewards_model = np.empty((capacity, 1), dtype=np.float32)
-        self.alpha, self.beta = alpha, beta
+        self.alpha, self.beta, self.gamma = alpha, beta, gamma
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones_no_max = np.empty((capacity, 1), dtype=np.float32)
         self.window = window
@@ -93,7 +101,8 @@ class ReplayBuffer(object):
         np.copyto(self.rewards_env[self.idx], reward_env)
         np.copyto(self.rewards_model[self.idx], reward_model)
         np.copyto(
-            self.rewards[self.idx], self.alpha * reward_env + self.beta * reward_model
+            self.rewards[self.idx],
+            self.alpha * reward_env + self.beta * reward_model + self.gamma,
         )
         np.copyto(self.next_obses[self.idx], next_obs)
         np.copyto(self.not_dones[self.idx], not done)
@@ -125,6 +134,7 @@ class ReplayBuffer(object):
                 self.rewards[self.idx : self.capacity],
                 self.alpha * reward_env[:maximum_index]
                 + self.beta * reward_model[:maximum_index],
+                +self.gamma,
             )
             np.copyto(
                 self.next_obses[self.idx : self.capacity], next_obs[:maximum_index]
@@ -145,7 +155,8 @@ class ReplayBuffer(object):
                 np.copyto(
                     self.rewards[0:remain],
                     self.alpha * reward_env[maximum_index:]
-                    + self.beta * reward_model[maximum_index:],
+                    + self.beta * reward_model[maximum_index:]
+                    + self.gamma,
                 )
                 np.copyto(self.next_obses[0:remain], next_obs[maximum_index:])
                 np.copyto(self.not_dones[0:remain], done[maximum_index:] <= 0)
@@ -160,7 +171,7 @@ class ReplayBuffer(object):
             np.copyto(self.rewards_model[self.idx : next_index], reward_model)
             np.copyto(
                 self.rewards[self.idx : next_index],
-                self.alpha * reward_env + self.beta * reward_model,
+                self.alpha * reward_env + self.beta * reward_model + self.gamma,
             )
             np.copyto(self.next_obses[self.idx : next_index], next_obs)
             np.copyto(self.not_dones[self.idx : next_index], done <= 0)
@@ -205,7 +216,9 @@ class ReplayBuffer(object):
             pred_reward = predictor.r_hat_batch(inputs)
             self.rewards_model[index * batch_size : last_index] = pred_reward
 
-        self.rewards = self.alpha * self.rewards_env + self.beta * self.rewards_model
+        self.rewards = (
+            self.alpha * self.rewards_env + self.beta * self.rewards_model + self.gamma
+        )
 
     def sample(self, batch_size):
         idxs = np.random.randint(

@@ -26,7 +26,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     episode_length_s = 15.0
     decimation = 2
     action_space = 42
-    observation_space = 54
+    observation_space = 58
     state_space = 0
 
     # simulation
@@ -77,6 +77,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
         22.5,  # left_foot
     ]
 
+    # # joint information
     # 'lower_waist:0', 'lower_waist:1'
     # 'right_upper_arm:0', 'right_upper_arm:2'
     # 'left_upper_arm:0', 'left_upper_arm:2'
@@ -89,6 +90,11 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     # 'left_shin'
     # 'right_foot:0', 'right_foot:1'
     # 'left_foot:0', 'left_foot:1'
+
+    # # body part information
+    # 'torso', 'head', 'lower_waist', 'right_upper_arm', 'left_upper_arm', 'pelvis',
+    # 'right_lower_arm', 'left_lower_arm', 'right_thigh', 'left_thigh', 'right_hand',
+    # 'left_hand', 'right_shin', 'left_shin', 'right_foot', 'left_foot'
 
     PD_Kp = 0.5
     PD_Kd = 0.05
@@ -225,5 +231,71 @@ class HumanoidEnv(LocomotionEnv):
                     capsules.append((start, end, rad, (1.0, 1.0, 0.5)))
 
             frames.append((capsules, [], []))
-
         return frames
+
+    def get_mirrored_state(self, state):
+        mirrored_state = state.copy()
+        # dof_pos
+        mirrored_state[[2, 3, 7, 9, 10, 11, 15, 17, 18]] = state[
+            [4, 5, 8, 12, 13, 14, 16, 19, 20]
+        ]
+        mirrored_state[[4, 5, 8, 12, 13, 14, 16, 19, 20]] = state[
+            [2, 3, 7, 9, 10, 11, 15, 17, 18]
+        ]
+
+        mirrored_state[0] = -mirrored_state[0]  # lower waist x
+        mirrored_state[6] = -mirrored_state[6]  # pelvis
+        mirrored_state[[18, 20]] = -mirrored_state[
+            [18, 20]
+        ]  # I don't know the reason, but foot:1 joint is not symmetric, but rather aligned to same orientation in global
+
+        # dof_vel
+        mirrored_state[[23, 24, 28, 30, 31, 32, 36, 38, 39]] = state[
+            [25, 26, 29, 33, 34, 35, 37, 40, 41]
+        ]
+        mirrored_state[[25, 26, 29, 33, 34, 35, 37, 40, 41]] = state[
+            [23, 24, 28, 30, 31, 32, 36, 38, 39]
+        ]
+
+        mirrored_state[21] = -mirrored_state[21]  # lower waist x
+        mirrored_state[27] = -mirrored_state[27]  # pelvis
+        mirrored_state[[39, 41]] = -mirrored_state[[39, 41]]
+
+        # vel_loc, angvel_loc, roll, angle_to_target
+        mirrored_state[[44, 46, 48, 49, 50, 51]] = -mirrored_state[
+            [44, 46, 48, 49, 50, 51]
+        ]
+
+        # hand and foot z position
+        mirrored_state[[54, 55, 56, 57]] = state[[55, 54, 57, 56]]
+
+        return mirrored_state
+
+    def get_mirrored_action(self, action):
+        mirrored_action = action.copy()
+
+        # dof_pos
+        mirrored_action[[2, 3, 7, 9, 10, 11, 15, 17, 18]] = action[
+            [4, 5, 8, 12, 13, 14, 16, 19, 20]
+        ]
+        mirrored_action[[4, 5, 8, 12, 13, 14, 16, 19, 20]] = action[
+            [2, 3, 7, 9, 10, 11, 15, 17, 18]
+        ]
+
+        mirrored_action[0] = -mirrored_action[0]  # lower waist x
+        mirrored_action[6] = -mirrored_action[6]  # pelvis
+        mirrored_action[[18, 20]] = -mirrored_action[[18, 20]]
+
+        # dof_vel
+        mirrored_action[[23, 24, 28, 30, 31, 32, 36, 38, 39]] = action[
+            [25, 26, 29, 33, 34, 35, 37, 40, 41]
+        ]
+        mirrored_action[[25, 26, 29, 33, 34, 35, 37, 40, 41]] = action[
+            [23, 24, 28, 30, 31, 32, 36, 38, 39]
+        ]
+
+        mirrored_action[21] = -mirrored_action[21]  # lower waist x
+        mirrored_action[27] = -mirrored_action[27]  # pelvis
+        mirrored_action[[39, 41]] = -mirrored_action[[39, 41]]
+
+        return mirrored_action

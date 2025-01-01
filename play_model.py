@@ -49,7 +49,7 @@ class Workspace(object):
         )
         if env.unwrapped.viewport_camera_controller != None:
             env.unwrapped.viewport_camera_controller.update_view_location(
-                [-6, -6, 3], [2, 0, 2]
+                [8, 0, 2], [2, 0, 1]  # [2, -6, 2], [2, 0, 1]
             )
         if args_cli.video:
             video_kwargs = {
@@ -70,7 +70,9 @@ class Workspace(object):
         ]
         self.agent = hydra.utils.instantiate(cfg.agent)
         # self.agent.load(self.work_dir, int(self.cfg.num_train_steps))
-        self.agent.load(self.work_dir, 1000000)
+        self.agent.load(self.work_dir, 9000000)
+
+        self.mirror = False
 
     def run(self):
         episode_done = np.zeros(self.num_envs)
@@ -85,8 +87,20 @@ class Workspace(object):
             if done_idx.size != 0:
                 obs[done_idx], _ = self.env.get_obs(done_idx)
 
+            if self.mirror:
+                obs[0] = torch.tensor(
+                    self.env.get_mirrored_state(np.array(obs[0].cpu())),
+                    device=self.device,
+                )
+
             with my_utils.eval_mode(self.agent):
-                action = self.agent.act(obs, sample=True)
+                action = self.agent.act(obs, sample=False)
+
+            if self.mirror:
+                action[0] = torch.tensor(
+                    self.env.get_mirrored_action(np.array(action[0].detach().cpu())),
+                    device=self.device,
+                )
 
             step_result = self.env.step(action)
 
@@ -101,7 +115,7 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="train_PEBBLE_humanT", version_base="1.1")
+@hydra.main(config_path="config", config_name="finetune_PEBBLE", version_base="1.1")
 def main(cfg):
 
     workspace = Workspace(cfg)

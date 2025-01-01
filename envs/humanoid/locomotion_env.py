@@ -119,6 +119,9 @@ class LocomotionEnv(CustomRLEnv):
             self.robot.data.joint_vel,
         )
 
+        # z position of hand and foot
+        self.acro_position_z = self.robot.data.body_pos_w[:, [10, 11, 14, 15], 2]
+
         self.body_state = self.robot.data.body_state_w
         (
             self.up_proj,
@@ -134,6 +137,8 @@ class LocomotionEnv(CustomRLEnv):
             self.dof_pos_scaled,
             self.prev_potentials,
             self.potentials,
+            self.torso_position_z_scaled,
+            self.acro_position_z_scaled,
         ) = compute_intermediate_values(
             self.targets,
             self.torso_position,
@@ -149,6 +154,9 @@ class LocomotionEnv(CustomRLEnv):
             self.potentials,
             self.prev_potentials,
             self.cfg.sim.dt,
+            self.acro_position_z,
+            self.cfg.termination_height,
+            self.cfg.stand_height,
         )
 
     def _get_observations(self) -> dict:
@@ -156,7 +164,7 @@ class LocomotionEnv(CustomRLEnv):
             (
                 self.dof_pos_scaled,
                 self.dof_vel * self.cfg.dof_vel_scale,
-                self.torso_position[:, 2].view(-1, 1),
+                self.torso_position_z_scaled.view(-1, 1),
                 self.vel_loc,
                 self.angvel_loc * self.cfg.angular_velocity_scale,
                 normalize_angle(self.yaw).unsqueeze(-1),
@@ -164,6 +172,7 @@ class LocomotionEnv(CustomRLEnv):
                 normalize_angle(self.angle_to_target).unsqueeze(-1),
                 self.up_proj.unsqueeze(-1),
                 self.heading_proj.unsqueeze(-1),
+                self.acro_position_z_scaled,
             ),
             dim=-1,
         )
@@ -303,6 +312,9 @@ def compute_intermediate_values(
     potentials: torch.Tensor,
     prev_potentials: torch.Tensor,
     dt: float,
+    acro_position_z,
+    termination_height: float,
+    stand_height: float,
 ):
     to_target = targets - torso_position
     to_target[:, 2] = 0.0
@@ -324,6 +336,13 @@ def compute_intermediate_values(
     prev_potentials[:] = potentials
     potentials = -torch.norm(to_target, p=2, dim=-1) / dt
 
+    torso_position_z = torso_position[:, 2]
+    torso_position_z_scaled = -1 + 2 * (torso_position_z - termination_height) / (
+        stand_height - termination_height
+    )
+
+    acro_position_z_scaled = -1 + 2 * acro_position_z / stand_height
+
     return (
         up_proj,
         heading_proj,
@@ -338,4 +357,6 @@ def compute_intermediate_values(
         dof_pos_scaled,
         prev_potentials,
         potentials,
+        torso_position_z_scaled,
+        acro_position_z_scaled,
     )

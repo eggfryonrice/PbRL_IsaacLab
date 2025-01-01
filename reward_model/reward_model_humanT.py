@@ -42,6 +42,7 @@ class RewardModel:
         large_batch=1,
         env=None,
         max_inputs_size=1e5,
+        mirror=False,
     ):
         # train data is trajectories, must process to sa and s..
         self.ds = ds
@@ -85,6 +86,8 @@ class RewardModel:
 
         self.max_inputs_size = max_inputs_size
         self.inputs_size = 0
+
+        self.mirror = mirror
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -282,6 +285,21 @@ class RewardModel:
         return sa1, sa2, bs1, bs2
 
     def put_queries(self, sa1, sa2, labels):
+        if self.mirror:
+            sa1_mirror = sa1.copy()
+            sa2_mirror = sa2.copy()
+            for i in range(len(sa1)):
+                sa1_mirror[i] = self.env.unwrapped.get_mirrored_state_action_query(
+                    sa1[i]
+                )
+                sa2_mirror[i] = self.env.unwrapped.get_mirrored_state_action_query(
+                    sa2[i]
+                )
+
+            sa1 = np.concatenate((sa1, sa1, sa1_mirror, sa1_mirror), axis=0)
+            sa2 = np.concatenate((sa2, sa2_mirror, sa2, sa2_mirror), axis=0)
+            labels = np.concatenate((labels, labels, labels, labels), axis=0)
+
         total_sample = sa1.shape[0]
         next_index = self.buffer_index + total_sample
         if next_index >= self.capacity:

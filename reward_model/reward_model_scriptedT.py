@@ -85,7 +85,6 @@ class RewardModel:
         lr=3e-4,
         mb_size=128,
         size_segment=1,
-        env_maker=None,
         max_size=100,
         activation="tanh",
         capacity=5e5,
@@ -96,6 +95,8 @@ class RewardModel:
         teacher_eps_mistake=0,
         teacher_eps_skip=0,
         teacher_eps_equal=0,
+        env=None,
+        mirror=False,
     ):
 
         # train data is trajectories, must process to sa and s..
@@ -149,6 +150,9 @@ class RewardModel:
 
         self.label_margin = label_margin
         self.label_target = 1 - 2 * self.label_margin
+
+        self.env = env
+        self.mirror = mirror
 
     def softXEnt_loss(self, input, target):
         logprobs = torch.nn.functional.log_softmax(input, dim=1)
@@ -344,6 +348,21 @@ class RewardModel:
         return sa_t_1, sa_t_2, r_t_1, r_t_2
 
     def put_queries(self, sa_t_1, sa_t_2, labels):
+        if self.mirror:
+            sa1_mirror = sa_t_1.copy()
+            sa2_mirror = sa_t_2.copy()
+            for i in range(len(sa_t_1)):
+                sa1_mirror[i] = self.env.unwrapped.get_mirrored_state_action_query(
+                    sa_t_1[i]
+                )
+                sa2_mirror[i] = self.env.unwrapped.get_mirrored_state_action_query(
+                    sa_t_2[i]
+                )
+
+            sa_t_1 = np.concatenate((sa_t_1, sa_t_1, sa1_mirror, sa1_mirror), axis=0)
+            sa_t_2 = np.concatenate((sa_t_2, sa2_mirror, sa_t_2, sa2_mirror), axis=0)
+            labels = np.concatenate((labels, labels, labels, labels), axis=0)
+
         total_sample = sa_t_1.shape[0]
         next_index = self.buffer_index + total_sample
         if next_index >= self.capacity:

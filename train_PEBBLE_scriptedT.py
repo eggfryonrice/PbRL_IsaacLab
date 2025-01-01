@@ -142,6 +142,10 @@ class Workspace(BaseWorkspace):
             self.step += self.num_envs
             self.interact_count += self.num_envs
 
+            if self.step % self.cfg.save_model_freq == 0:
+                self.agent.save(self.work_dir, self.step)
+                self.reward_model.save(self.work_dir, self.step)
+
         self.agent.save(self.work_dir, self.step)
         self.reward_model.save(self.work_dir, self.step)
 

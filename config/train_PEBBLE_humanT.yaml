@@ -20,9 +20,10 @@ replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
 
-# for use alpha * env reward + beta * learned reward as reward
+# for use alpha * env reward + beta * learned reward as reward + gamma
 reward_alpha: 0.0
 reward_beta: 1.0
+reward_gamma: 0.0
 
 # evaluation
 eval_frequency: 100000000
@@ -55,7 +56,8 @@ reward_schedule: 0
 
 max_query_save: 1e6 
 
-reward_model_capacity: 200
+reward_model_capacity: 400
+mirror: true
 
 # logger
 log_frequency: 10000
@@ -69,4 +71,4 @@ hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/pebble_humanT/max_feedback${max_feedback}_reward_batch${reward_batch}_large_batch${large_batch}_num_interact${num_interact}_feed_type${feed_type}_alpha${reward_alpha}_beta${reward_beta}_seed${seed}
+    dir: ./exp/${env}/pebble_humanT/max_feedback${max_feedback}_reward_batch${reward_batch}_large_batch${large_batch}_num_interact${num_interact}_feed_type${feed_type}_alpha${reward_alpha}_beta${reward_beta}_mirror${mirror}_seed${seed}

@@ -15,7 +15,7 @@ seed: 19
 num_envs: 10
 
 # pretrained model path
-pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid"
+pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid_mirror"
 pretrained_model_step: 10000000
 
 # training
@@ -24,21 +24,22 @@ replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
 
-# use alpha * env reward + beta * learned reward as reward
-reward_alpha: 0
-reward_beta: 1
+# use alpha * env reward + beta * learned reward as reward + gamma
+reward_alpha: 0.0
+reward_beta: 0.5
+reward_gamma: 0.5
 
 # reward learning
 max_feedback: 800
-reward_batch: 10
+reward_batch: 5
 segment: 40
 activation: tanh
 num_interact: 50000 # how often we label preferences
 reward_lr: 0.0003
-reward_update: 50
+reward_update: 3
 feed_type: 3
 ensemble_size: 3
-large_batch: 10 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
+large_batch: 20 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
 label_margin: 0.0
 teacher_beta: -1
 teacher_gamma: 1
@@ -49,7 +50,8 @@ teacher_eps_equal: 0.1
 reward_schedule: 0
 
 max_query_save: 5e5
-reward_model_capacity: 200
+reward_model_capacity: 800
+mirror: false
 
 load_reward_model: true 
 
@@ -65,4 +67,4 @@ hydra:
   job:
     name: ${env}
   run:
-    dir: ./exp/${env}/finetune_pebble/max_feedback${max_feedback}_reward_batch${reward_batch}_num_interact${num_interact}_seed${seed}
+    dir: ./exp/${env}/finetune_pebble/max_feedback${max_feedback}_reward_batch${reward_batch}_num_interact${num_interact}_segment${segment}_mirror${mirror}_ru${reward_update}_seed${seed}
