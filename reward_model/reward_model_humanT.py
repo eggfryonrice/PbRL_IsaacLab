@@ -85,6 +85,8 @@ class RewardModel:
         self.env = env
 
         self.max_inputs_size = max_inputs_size
+        if mirror:
+            self.max_inputs_size = 4 * max_inputs_size
         self.inputs_size = 0
 
         self.mirror = mirror

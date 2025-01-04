@@ -27,7 +27,7 @@ def update_camera_eye():
 
 
 # size multiplier
-zoom = 50
+zoom = 70
 
 # interval multiplier - gets (slower) times slower
 slower = 2

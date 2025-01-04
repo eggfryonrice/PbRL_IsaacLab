@@ -97,6 +97,20 @@ class LocomotionEnv(CustomRLEnv):
             action_position * (self._joint_pos_upperbound + margin),
             -action_position * (self._joint_pos_lowerbound - margin),
         )
+
+        k = 1.2
+        # for lower arm and upper arm, target is -k when action is 0,
+        # same when action is -1 and 1. This is to make arm straight
+        target_position[:, [7, 8]] = torch.where(
+            action_position[:, [7, 8]] > 0,
+            -k
+            + action_position[:, [7, 8]]
+            * (self._joint_pos_upperbound[:, [7, 8]] + k + margin),
+            -k
+            - action_position[:, [7, 8]]
+            * (self._joint_pos_lowerbound[:, [7, 8]] + k - margin),
+        )
+
         target_velocity = (
             self.actions[:, len(self._joint_dof_idx) :] / self.cfg.dof_vel_scale
         )
@@ -165,11 +179,10 @@ class LocomotionEnv(CustomRLEnv):
                 self.dof_pos_scaled,
                 self.dof_vel * self.cfg.dof_vel_scale,
                 self.torso_position_z_scaled.view(-1, 1),
-                self.vel_loc,
+                self.velocity,
                 self.angvel_loc * self.cfg.angular_velocity_scale,
                 normalize_angle(self.yaw).unsqueeze(-1),
                 normalize_angle(self.roll).unsqueeze(-1),
-                normalize_angle(self.angle_to_target).unsqueeze(-1),
                 self.up_proj.unsqueeze(-1),
                 self.heading_proj.unsqueeze(-1),
                 self.acro_position_z_scaled,
@@ -184,7 +197,7 @@ class LocomotionEnv(CustomRLEnv):
             self.torso_position[:, 2],
             self.cfg.stand_height,
             self.up_proj,
-            self.vel_loc[:, 0],
+            self.velocity[:, 0],
             self.cfg.move_speed,
         )
         return total_reward

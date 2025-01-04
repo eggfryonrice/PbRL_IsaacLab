@@ -70,7 +70,7 @@ class Workspace(object):
         ]
         self.agent = hydra.utils.instantiate(cfg.agent)
         # self.agent.load(self.work_dir, int(self.cfg.num_train_steps))
-        self.agent.load(self.work_dir, 9000000)
+        self.agent.load(self.work_dir, 5000000)
 
         self.mirror = False
 
@@ -102,6 +102,9 @@ class Workspace(object):
                     device=self.device,
                 )
 
+            # action = torch.zeros_like(action)
+            # action[0][7] = -1
+
             step_result = self.env.step(action)
 
             next_obs, done = step_result[0], step_result[2]
@@ -115,7 +118,9 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="finetune_PEBBLE", version_base="1.1")
+@hydra.main(
+    config_path="config", config_name="train_PEBBLE_scriptedT", version_base="1.1"
+)
 def main(cfg):
 
     workspace = Workspace(cfg)

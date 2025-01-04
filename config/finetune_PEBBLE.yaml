@@ -16,7 +16,7 @@ num_envs: 10
 
 # pretrained model path
 pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid_mirror"
-pretrained_model_step: 10000000
+pretrained_model_step: 5000000
 
 # training
 num_train_steps: 1e7
@@ -36,7 +36,7 @@ segment: 40
 activation: tanh
 num_interact: 50000 # how often we label preferences
 reward_lr: 0.0003
-reward_update: 3
+reward_update: 10
 feed_type: 3
 ensemble_size: 3
 large_batch: 20 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
@@ -50,7 +50,7 @@ teacher_eps_equal: 0.1
 reward_schedule: 0
 
 max_query_save: 5e5
-reward_model_capacity: 800
+reward_model_capacity: 200
 mirror: false
 
 load_reward_model: true 

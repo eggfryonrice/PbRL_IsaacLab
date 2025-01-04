@@ -26,7 +26,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     episode_length_s = 15.0
     decimation = 2
     action_space = 42
-    observation_space = 58
+    observation_space = 57
     state_space = 0
 
     # simulation
@@ -90,6 +90,16 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     # 'left_shin'
     # 'right_foot:0', 'right_foot:1'
     # 'left_foot:0', 'left_foot:1'
+
+    # joint pos limit
+    # lower limit
+    # -0.7854, -1.3090, -1.5708, -1.5708, -1.5708, -1.5708, -0.6109, -1.5708,
+    # -1.5708, -0.7854, -2.0944, -1.0472, -0.7854, -2.0944, -1.0472, -2.7925,
+    # -2.7925, -0.8727, -0.8727, -0.8727, -0.8727
+    # upper limit
+    # 0.7854, 0.5236, 1.2217, 1.2217, 1.2217, 1.2217, 0.6109, 0.8727,
+    # 0.8727, 0.2618, 0.7854, 0.6109, 0.2618, 0.7854, 0.6109, 0.0349,
+    # 0.0349, 0.8727, 0.8727, 0.8727, 0.8727
 
     # # body part information
     # 'torso', 'head', 'lower_waist', 'right_upper_arm', 'left_upper_arm', 'pelvis',
@@ -261,13 +271,11 @@ class HumanoidEnv(LocomotionEnv):
         mirrored_state[27] = -mirrored_state[27]  # pelvis
         mirrored_state[[39, 41]] = -mirrored_state[[39, 41]]
 
-        # vel_loc, angvel_loc, roll, angle_to_target
-        mirrored_state[[44, 46, 48, 49, 50, 51]] = -mirrored_state[
-            [44, 46, 48, 49, 50, 51]
-        ]
+        # vel_loc, angvel_loc, yaw, roll
+        mirrored_state[[44, 46, 48, 49, 50]] = -mirrored_state[[44, 46, 48, 49, 50]]
 
         # hand and foot z position
-        mirrored_state[[54, 55, 56, 57]] = state[[55, 54, 57, 56]]
+        mirrored_state[[53, 54, 55, 56]] = state[[54, 53, 56, 55]]
 
         return mirrored_state
 
