@@ -139,6 +139,10 @@ class BaseWorkspace(object):
                 labeled_queries = self.reward_model.uniform_sampling()
             elif self.cfg.feed_type == 1:
                 labeled_queries = self.reward_model.disagreement_sampling()
+            elif self.cfg.feed_type == 2:
+                labeled_queries = (
+                    self.reward_model.high_reward_and_disagreement_sampling()
+                )
             elif self.cfg.feed_type == 3:
                 labeled_queries = self.reward_model.high_reward_sampling()
             else:

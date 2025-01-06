@@ -36,7 +36,7 @@ segment: 40
 activation: tanh
 num_interact: 50000 # how often we label preferences
 reward_lr: 0.0003
-reward_update: 10
+reward_update: 3
 feed_type: 3
 ensemble_size: 3
 large_batch: 20 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
@@ -49,7 +49,7 @@ teacher_eps_equal: 0.1
 
 reward_schedule: 0
 
-max_query_save: 5e5
+max_query_save: 1e6
 reward_model_capacity: 200
 mirror: false
 

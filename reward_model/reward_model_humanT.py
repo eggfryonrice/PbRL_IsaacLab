@@ -333,11 +333,12 @@ class RewardModel:
             np.copyto(self.buffer_label[self.buffer_index : next_index], labels)
             self.buffer_index = next_index
 
-    def uniform_sampling(self):
+    def uniform_sampling(self, size=0):
         labels = []
         sa1s = []
         sa2s = []
-        while len(labels) < self.mb_size:
+        size = size if size else self.mb_size
+        while len(labels) < size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=1)
 
             sa1, sa2, bs1, bs2 = sa1[0], sa2[0], bs1[0], bs2[0]
@@ -360,10 +361,11 @@ class RewardModel:
 
         return len(labels)
 
-    def disagreement_sampling(self):
+    def disagreement_sampling(self, size=0):
         labels = []
         sa1s = []
         sa2s = []
+        size = size if size else self.mb_size
         while len(labels) < self.mb_size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
 
@@ -394,11 +396,12 @@ class RewardModel:
 
         return len(labels)
 
-    def high_reward_sampling(self):
+    def high_reward_sampling(self, size=0):
         labels = []
         sa1s = []
         sa2s = []
-        while len(labels) < self.mb_size:
+        size = size if size else self.mb_size
+        while len(labels) < size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
             sa = np.concatenate((sa1, sa2), axis=0)
             bs = np.concatenate((bs1, bs2), axis=0)
@@ -431,6 +434,11 @@ class RewardModel:
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
         return len(labels)
+
+    def high_reward_and_disagreement_sampling(self):
+        return self.high_reward_sampling(
+            self.mb_size // 2
+        ) + self.disagreement_sampling((self.mb_size + 1) // 2)
 
     def train_reward(self):
         ensemble_losses = [[] for _ in range(self.de)]
