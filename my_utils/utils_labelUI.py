@@ -247,25 +247,43 @@ def event_handler():
     global theta1, theta2
     mouse_pos = pygame.mouse.get_pos()
     mouse_pos = (mouse_pos[0], UI_height - mouse_pos[1])
+    highlight_left_best_button = False
+    highlight_right_best_button = False
     highlight_left_scene = False
     highlight_right_scene = False
     highlight_skip_button = False
     highlight_no_pref_button = False
     running = True
     choice = None
+    best = None
     # Determine which area the mouse is hovering over
+
     if (
         gap <= mouse_pos[0]
         and mouse_pos[0] <= gap + (UI_width // 2) - (gap // 2)
-        and button_height + gap + gap <= mouse_pos[1]
+        and UI_height - button_height - gap <= mouse_pos[1]
         and mouse_pos[1] <= UI_height - gap
+    ):
+        highlight_left_best_button = True
+    elif (
+        (UI_width // 2) + (gap // 2) <= mouse_pos[0]
+        and mouse_pos[0] <= UI_width - gap
+        and UI_height - button_height - gap <= mouse_pos[1]
+        and mouse_pos[1] <= UI_height - gap
+    ):
+        highlight_right_best_button = True
+    elif (
+        gap <= mouse_pos[0]
+        and mouse_pos[0] <= gap + (UI_width // 2) - (gap // 2)
+        and button_height + gap + gap <= mouse_pos[1]
+        and mouse_pos[1] <= UI_height - gap - button_height - gap
     ):
         highlight_left_scene = True
     elif (
         (UI_width // 2) + (gap // 2) <= mouse_pos[0]
         and mouse_pos[0] <= UI_width - gap
         and button_height + gap + gap <= mouse_pos[1]
-        and mouse_pos[1] <= UI_height - gap
+        and mouse_pos[1] <= UI_height - gap - button_height - gap
     ):
         highlight_right_scene = True
     elif (
@@ -293,6 +311,12 @@ def event_handler():
                 choice = 0
             elif highlight_right_scene:
                 choice = 1
+            elif highlight_left_best_button:
+                choice = 0
+                best = 0
+            elif highlight_right_best_button:
+                choice = 1
+                best = 1
             elif highlight_skip_button:
                 choice = None  # Skip
             elif highlight_no_pref_button:
@@ -315,12 +339,15 @@ def event_handler():
     update_camera_eye()
 
     return (
+        highlight_left_best_button,
+        highlight_right_best_button,
         highlight_left_scene,
         highlight_right_scene,
         highlight_skip_button,
         highlight_no_pref_button,
         running,
         choice,
+        best,
     )
 
 
@@ -352,6 +379,7 @@ def label_preference(frames1, frames2, interval=1 / 60):
 
     running = True
     choice = None
+    best = None
 
     pygame.font.init()
     font = pygame.font.SysFont(None, 48)
@@ -359,115 +387,20 @@ def label_preference(frames1, frames2, interval=1 / 60):
     while running:
 
         (
+            highlight_left_best_button,
+            highlight_right_best_button,
             highlight_left_scene,
             highlight_right_scene,
             highlight_skip_button,
             highlight_no_pref_button,
             running,
             choice,
+            best,
         ) = event_handler()
 
         # Clear the screen and set the background color to black
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        # Render left scene with optional highlight
-        scene_width = (UI_width // 2) - (gap // 2) - gap
-        if highlight_left_scene:
-            glClearColor(
-                0.1, 0.1, 0.1, 1.0
-            )  # Dark gray highlight for left scene background
-        else:
-            glClearColor(0.0, 0.0, 0.0, 1.0)
-        glViewport(
-            gap,
-            button_height + gap + gap,
-            scene_width,
-            UI_height - (button_height + gap + 2 * gap),
-        )
-        glScissor(
-            gap,
-            button_height + gap + gap,
-            scene_width,
-            UI_height - (button_height + gap + 2 * gap),
-        )
-        glEnable(GL_SCISSOR_TEST)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glDisable(GL_SCISSOR_TEST)
-
-        # Set up projection
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(
-            45,
-            scene_width / (UI_height - (button_height + gap + 2 * gap)),
-            0.1,
-            5000.0,
-        )
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        # Set up camera
-        gluLookAt(
-            camera_eye[0],
-            camera_eye[1],
-            camera_eye[2],
-            camera_target[0],
-            camera_target[1],
-            camera_target[2],
-            0,
-            0,
-            1,
-        )
-        # Render scene
-        render_scene(frames1[frame_index])
-
-        # Render right scene with optional highlight
-        if highlight_right_scene:
-            glClearColor(
-                0.1, 0.1, 0.1, 1.0
-            )  # Dark gray highlight for right scene background
-        else:
-            glClearColor(0.0, 0.0, 0.0, 1.0)
-        glViewport(
-            (UI_width // 2) + (gap // 2),
-            button_height + gap + gap,
-            scene_width,
-            UI_height - (button_height + gap + 2 * gap),
-        )
-        glScissor(
-            (UI_width // 2) + (gap // 2),
-            button_height + gap + gap,
-            scene_width,
-            UI_height - (button_height + gap + 2 * gap),
-        )
-        glEnable(GL_SCISSOR_TEST)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glDisable(GL_SCISSOR_TEST)
-        # Set up projection
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(
-            45,
-            scene_width / (UI_height - (button_height + gap + 2 * gap)),
-            0.1,
-            5000.0,
-        )
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        # Set up camera
-        gluLookAt(
-            camera_eye[0],
-            camera_eye[1],
-            camera_eye[2],
-            camera_target[0],
-            camera_target[1],
-            camera_target[2],
-            0,
-            0,
-            1,
-        )
-        # Render scene
-        render_scene(frames2[frame_index])
 
         glColor3f(0.5, 0.5, 1)
 
@@ -475,15 +408,13 @@ def label_preference(frames1, frames2, interval=1 / 60):
         glViewport(0, 0, UI_width, UI_height)
 
         # Draw "Skip" and "No Preference" buttons with optional highlight
-        button_surface = pygame.Surface(
-            (UI_width, button_height + gap), pygame.SRCALPHA
-        )
+        button_surface = pygame.Surface((UI_width, UI_height), pygame.SRCALPHA)
         button_surface.fill((0, 0, 0, 0))  # Transparent background for buttons
 
         # Draw "Skip" button on the left
         skip_rect = pygame.Rect(
             gap,
-            0,
+            UI_height - button_height - gap,
             (UI_width // 2) - (gap // 2) - gap,
             button_height,
         )
@@ -498,7 +429,7 @@ def label_preference(frames1, frames2, interval=1 / 60):
         # Draw "No Preference" button on the right
         no_pref_rect = pygame.Rect(
             (UI_width // 2) + (gap // 2),
-            0,
+            UI_height - button_height - gap,
             (UI_width // 2) - (gap // 2) - gap,
             button_height,
         )
@@ -509,6 +440,37 @@ def label_preference(frames1, frames2, interval=1 / 60):
         no_pref_text = font.render("Equally Preferable", True, (0, 0, 0))
         text_rect = no_pref_text.get_rect(center=no_pref_rect.center)
         button_surface.blit(no_pref_text, text_rect)
+
+        # draw best so far button on left and right
+        left_best_rect = pygame.Rect(
+            gap,
+            gap,
+            (UI_width // 2) - (gap // 2) - gap,
+            button_height,
+        )
+        button_color = (
+            (255, 255, 200, 255) if highlight_left_best_button else (200, 200, 200, 255)
+        )
+        pygame.draw.rect(button_surface, button_color, left_best_rect)
+        left_best_text = font.render("query 0 is best so far", True, (0, 0, 0))
+        text_rect = left_best_text.get_rect(center=left_best_rect.center)
+        button_surface.blit(left_best_text, text_rect)
+
+        right_best_rect = pygame.Rect(
+            (UI_width // 2) + (gap // 2),
+            gap,
+            (UI_width // 2) - (gap // 2) - gap,
+            button_height,
+        )
+        button_color = (
+            (255, 255, 200, 255)
+            if highlight_right_best_button
+            else (200, 200, 200, 255)
+        )
+        pygame.draw.rect(button_surface, button_color, right_best_rect)
+        right_best_text = font.render("query 1 is best so far", True, (0, 0, 0))
+        text_rect = right_best_text.get_rect(center=right_best_rect.center)
+        button_surface.blit(right_best_text, text_rect)
 
         # Convert the Pygame surface to a texture
         button_texture_data = pygame.image.tostring(button_surface, "RGBA", True)
@@ -557,9 +519,9 @@ def label_preference(frames1, frames2, interval=1 / 60):
         glTexCoord2f(1, 0)
         glVertex2f(UI_width, 0)
         glTexCoord2f(1, 1)
-        glVertex2f(UI_width, button_height + gap)
+        glVertex2f(UI_width, UI_height)
         glTexCoord2f(0, 1)
-        glVertex2f(0, button_height + gap)
+        glVertex2f(0, UI_height)
         glEnd()
 
         glDisable(GL_TEXTURE_2D)
@@ -576,6 +538,106 @@ def label_preference(frames1, frames2, interval=1 / 60):
 
         # Delete the texture
         glDeleteTextures([button_texture_id])
+
+        # now we draw animation scene
+
+        # Render left scene with optional highlight
+        scene_width = (UI_width // 2) - (gap // 2) - gap
+        if highlight_left_scene:
+            glClearColor(
+                0.1, 0.1, 0.1, 1.0
+            )  # Dark gray highlight for left scene background
+        else:
+            glClearColor(0.0, 0.0, 0.0, 1.0)
+        glViewport(
+            gap,
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (2 * button_height + 4 * gap),
+        )
+        glScissor(
+            gap,
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (2 * button_height + 4 * gap),
+        )
+        glEnable(GL_SCISSOR_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glDisable(GL_SCISSOR_TEST)
+
+        # Set up projection
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(
+            45,
+            scene_width / (UI_height - (2 * button_height + 4 * gap)),
+            0.1,
+            5000.0,
+        )
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        # Set up camera
+        gluLookAt(
+            camera_eye[0],
+            camera_eye[1],
+            camera_eye[2],
+            camera_target[0],
+            camera_target[1],
+            camera_target[2],
+            0,
+            0,
+            1,
+        )
+        # Render scene
+        render_scene(frames1[frame_index])
+
+        # Render right scene with optional highlight
+        if highlight_right_scene:
+            glClearColor(
+                0.1, 0.1, 0.1, 1.0
+            )  # Dark gray highlight for right scene background
+        else:
+            glClearColor(0.0, 0.0, 0.0, 1.0)
+        glViewport(
+            (UI_width // 2) + (gap // 2),
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (2 * button_height + 4 * gap),
+        )
+        glScissor(
+            (UI_width // 2) + (gap // 2),
+            button_height + gap + gap,
+            scene_width,
+            UI_height - (2 * button_height + 4 * gap),
+        )
+        glEnable(GL_SCISSOR_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glDisable(GL_SCISSOR_TEST)
+        # Set up projection
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(
+            45,
+            scene_width / (UI_height - (2 * button_height + 4 * gap)),
+            0.1,
+            5000.0,
+        )
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        # Set up camera
+        gluLookAt(
+            camera_eye[0],
+            camera_eye[1],
+            camera_eye[2],
+            camera_target[0],
+            camera_target[1],
+            camera_target[2],
+            0,
+            0,
+            1,
+        )
+        # Render scene
+        render_scene(frames2[frame_index])
 
         # Swap buffers
         pygame.display.flip()
@@ -595,7 +657,7 @@ def label_preference(frames1, frames2, interval=1 / 60):
 
     print(f"User choice: {choice}    ", end="\r", flush=True)
 
-    return choice
+    return choice, best
 
 
 # Example usage
@@ -622,5 +684,5 @@ if __name__ == "__main__":
     frames1 = [create_dummy_frame(i) for i in range(60)]
     frames2 = [create_dummy_frame(i) for i in range(60)]
 
-    choice = label_preference(frames1, frames2)
+    choice, best = label_preference(frames1, frames2)
     print("User choice:", choice)

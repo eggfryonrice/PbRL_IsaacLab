@@ -38,10 +38,10 @@ class RewardModel:
         size_segment=1,
         max_size=100,
         activation="tanh",
-        capacity=5e5,
+        capacity=5e5,  # length of total labeled queries
         large_batch=1,
         env=None,
-        max_inputs_size=1e5,
+        max_inputs_size=1e5,  # length of total queries saved to be asked to user
         mirror=False,
     ):
         # train data is trajectories, must process to sa and s..
@@ -57,7 +57,9 @@ class RewardModel:
         self.activation = activation
         self.size_segment = size_segment
 
-        self.capacity = int(capacity)
+        self.capacity = capacity * 3
+        if mirror:
+            self.capacity = 4 * self.capacity
         self.buffer_seg1 = np.empty(
             (self.capacity, size_segment, self.ds + self.da), dtype=np.float32
         )
@@ -85,11 +87,11 @@ class RewardModel:
         self.env = env
 
         self.max_inputs_size = max_inputs_size
-        if mirror:
-            self.max_inputs_size = 4 * max_inputs_size
         self.inputs_size = 0
 
         self.mirror = mirror
+
+        self.best_query_so_far = None
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -338,7 +340,8 @@ class RewardModel:
         sa1s = []
         sa2s = []
         size = size if size else self.mb_size
-        while len(labels) < size:
+        cnt = 0
+        while cnt < size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=1)
 
             sa1, sa2, bs1, bs2 = sa1[0], sa2[0], bs1[0], bs2[0]
@@ -349,13 +352,26 @@ class RewardModel:
             frames2 = self.env.unwrapped.obs_query_to_scene_input(
                 sa2[:, : self.ds], bs2
             )
-            label = my_utils.label_preference(
+            label, best = my_utils.label_preference(
                 frames1, frames2, self.env.unwrapped.step_dt
             )
-            if label != None:
+            if label is not None:
+                cnt += 1
                 labels.append([label])
                 sa1s.append(sa1)
                 sa2s.append(sa2)
+                if self.best_query_so_far is not None and best is None:
+                    labels.append([0])
+                    sa1s.append(self.best_query_so_far)
+                    sa2s.append(sa1)
+                    labels.append([0])
+                    sa1s.append(self.best_query_so_far)
+                    sa2s.append(sa2)
+                if best is not None:
+                    if best == 0:
+                        self.best_query_so_far = sa1
+                    else:
+                        self.best_query_so_far = sa2
 
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
@@ -366,7 +382,8 @@ class RewardModel:
         sa1s = []
         sa2s = []
         size = size if size else self.mb_size
-        while len(labels) < self.mb_size:
+        cnt = 0
+        while cnt < size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
 
             _, disagree = self.get_rank_probability(sa1, sa2)
@@ -384,13 +401,26 @@ class RewardModel:
             frames2 = self.env.unwrapped.obs_query_to_scene_input(
                 sa2[:, : self.ds], bs2
             )
-            label = my_utils.label_preference(
+            label, best = my_utils.label_preference(
                 frames1, frames2, self.env.unwrapped.step_dt
             )
-            if label != None:
+            if label is not None:
+                cnt += 1
                 labels.append([label])
                 sa1s.append(sa1)
                 sa2s.append(sa2)
+                if self.best_query_so_far is not None and best is None:
+                    labels.append([0])
+                    sa1s.append(self.best_query_so_far)
+                    sa2s.append(sa1)
+                    labels.append([0])
+                    sa1s.append(self.best_query_so_far)
+                    sa2s.append(sa2)
+                if best is not None:
+                    if best == 0:
+                        self.best_query_so_far = sa1
+                    else:
+                        self.best_query_so_far = sa2
 
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
@@ -401,7 +431,8 @@ class RewardModel:
         sa1s = []
         sa2s = []
         size = size if size else self.mb_size
-        while len(labels) < size:
+        cnt = 0
+        while cnt < size:
             sa1, sa2, bs1, bs2 = self.get_queries(mb_size=self.large_batch)
             sa = np.concatenate((sa1, sa2), axis=0)
             bs = np.concatenate((bs1, bs2), axis=0)
@@ -423,13 +454,26 @@ class RewardModel:
             frames2 = self.env.unwrapped.obs_query_to_scene_input(
                 sa2[:, : self.ds], bs2
             )
-            label = my_utils.label_preference(
+            label, best = my_utils.label_preference(
                 frames1, frames2, self.env.unwrapped.step_dt
             )
-            if label != None:
+            if label is not None:
+                cnt += 1
                 labels.append([label])
                 sa1s.append(sa1)
                 sa2s.append(sa2)
+                if self.best_query_so_far is not None and best is None:
+                    labels.append([0])
+                    sa1s.append(self.best_query_so_far)
+                    sa2s.append(sa1)
+                    labels.append([0])
+                    sa1s.append(self.best_query_so_far)
+                    sa2s.append(sa2)
+                if best is not None:
+                    if best == 0:
+                        self.best_query_so_far = sa1
+                    else:
+                        self.best_query_so_far = sa2
 
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
