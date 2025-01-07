@@ -57,7 +57,9 @@ class RewardModel:
         self.activation = activation
         self.size_segment = size_segment
 
-        self.capacity = capacity * 3
+        self.capacity = (
+            capacity * 2
+        )  # doubled because we also compare with best query so far
         if mirror:
             self.capacity = 4 * self.capacity
         self.buffer_seg1 = np.empty(
@@ -92,6 +94,7 @@ class RewardModel:
         self.mirror = mirror
 
         self.best_query_so_far = None
+        self.best_frames_so_far = None
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -353,7 +356,7 @@ class RewardModel:
                 sa2[:, : self.ds], bs2
             )
             label, best = my_utils.label_preference(
-                frames1, frames2, self.env.unwrapped.step_dt
+                frames1, frames2, self.best_frames_so_far, self.env.unwrapped.step_dt
             )
             if label is not None:
                 cnt += 1
@@ -361,17 +364,26 @@ class RewardModel:
                 sa1s.append(sa1)
                 sa2s.append(sa2)
                 if self.best_query_so_far is not None and best is None:
-                    labels.append([0])
-                    sa1s.append(self.best_query_so_far)
-                    sa2s.append(sa1)
-                    labels.append([0])
-                    sa1s.append(self.best_query_so_far)
-                    sa2s.append(sa2)
+                    if label == 1:
+                        labels.append([0])
+                        sa1s.append(self.best_query_so_far)
+                        sa2s.append(sa1)
+                    if label == 0:
+                        labels.append([0])
+                        sa1s.append(self.best_query_so_far)
+                        sa2s.append(sa2)
                 if best is not None:
+                    old_best = self.best_query_so_far
                     if best == 0:
                         self.best_query_so_far = sa1
+                        self.best_frames_so_far = frames1
                     else:
                         self.best_query_so_far = sa2
+                        self.best_frames_so_far = frames2
+                    if old_best is not None:
+                        labels.append([1])
+                        sa1s.append(old_best)
+                        sa2s.append(self.best_query_so_far)
 
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
@@ -402,7 +414,7 @@ class RewardModel:
                 sa2[:, : self.ds], bs2
             )
             label, best = my_utils.label_preference(
-                frames1, frames2, self.env.unwrapped.step_dt
+                frames1, frames2, self.best_frames_so_far, self.env.unwrapped.step_dt
             )
             if label is not None:
                 cnt += 1
@@ -410,17 +422,26 @@ class RewardModel:
                 sa1s.append(sa1)
                 sa2s.append(sa2)
                 if self.best_query_so_far is not None and best is None:
-                    labels.append([0])
-                    sa1s.append(self.best_query_so_far)
-                    sa2s.append(sa1)
-                    labels.append([0])
-                    sa1s.append(self.best_query_so_far)
-                    sa2s.append(sa2)
+                    if label == 1:
+                        labels.append([0])
+                        sa1s.append(self.best_query_so_far)
+                        sa2s.append(sa1)
+                    if label == 0:
+                        labels.append([0])
+                        sa1s.append(self.best_query_so_far)
+                        sa2s.append(sa2)
                 if best is not None:
+                    old_best = self.best_query_so_far
                     if best == 0:
                         self.best_query_so_far = sa1
+                        self.best_frames_so_far = frames1
                     else:
                         self.best_query_so_far = sa2
+                        self.best_frames_so_far = frames2
+                    if old_best is not None:
+                        labels.append([1])
+                        sa1s.append(old_best)
+                        sa2s.append(self.best_query_so_far)
 
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
@@ -455,7 +476,7 @@ class RewardModel:
                 sa2[:, : self.ds], bs2
             )
             label, best = my_utils.label_preference(
-                frames1, frames2, self.env.unwrapped.step_dt
+                frames1, frames2, self.best_frames_so_far, self.env.unwrapped.step_dt
             )
             if label is not None:
                 cnt += 1
@@ -463,17 +484,26 @@ class RewardModel:
                 sa1s.append(sa1)
                 sa2s.append(sa2)
                 if self.best_query_so_far is not None and best is None:
-                    labels.append([0])
-                    sa1s.append(self.best_query_so_far)
-                    sa2s.append(sa1)
-                    labels.append([0])
-                    sa1s.append(self.best_query_so_far)
-                    sa2s.append(sa2)
+                    if label == 1:
+                        labels.append([0])
+                        sa1s.append(self.best_query_so_far)
+                        sa2s.append(sa1)
+                    if label == 0:
+                        labels.append([0])
+                        sa1s.append(self.best_query_so_far)
+                        sa2s.append(sa2)
                 if best is not None:
+                    old_best = self.best_query_so_far
                     if best == 0:
                         self.best_query_so_far = sa1
+                        self.best_frames_so_far = frames1
                     else:
                         self.best_query_so_far = sa2
+                        self.best_frames_so_far = frames2
+                    if old_best is not None:
+                        labels.append([1])
+                        sa1s.append(old_best)
+                        sa2s.append(self.best_query_so_far)
 
         self.put_queries(np.array(sa1s), np.array(sa2s), np.array(labels))
 
