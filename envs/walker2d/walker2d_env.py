@@ -227,3 +227,23 @@ class Walker2dEnv(LocomotionEnv):
             torso_x += torso_xvel * self.step_dt
 
         return frames
+
+    def get_mirrored_state(self, state):
+        mirrored_state = state.copy()
+
+        mirrored_state[[1, 3, 5]] = state[[2, 4, 6]]
+        mirrored_state[[2, 4, 6]] = state[[1, 3, 5]]
+
+        mirrored_state[[8, 10, 12]] = state[[9, 11, 13]]
+        mirrored_state[[9, 11, 13]] = state[[8, 10, 12]]
+
+        mirrored_state[[18, 20, 22]] = state[[19, 21, 23]]
+        mirrored_state[[19, 21, 23]] = state[[18, 20, 22]]
+
+        return mirrored_state
+
+    def get_mirrored_action(self, action):
+        mirrored_action = action.copy()
+        mirrored_action[[0, 2, 4]] = action[[1, 3, 5]]
+        mirrored_action[[1, 3, 5]] = action[[0, 2, 4]]
+        return mirrored_action

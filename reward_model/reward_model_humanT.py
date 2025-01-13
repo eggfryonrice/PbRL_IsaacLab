@@ -7,6 +7,9 @@ import time
 
 import my_utils
 
+
+from memory_profiler import profile
+
 device = "cuda"
 
 
@@ -95,6 +98,8 @@ class RewardModel:
 
         self.best_query_so_far = None
         self.best_frames_so_far = None
+
+        self.labler = my_utils.PreferenceLabeler()
 
     def construct_ensemble(self):
         for i in range(self.de):
@@ -355,11 +360,12 @@ class RewardModel:
             frames2 = self.env.unwrapped.obs_query_to_scene_input(
                 sa2[:, : self.ds], bs2
             )
-            label, best = my_utils.label_preference(
+            label, best = self.labler.label_preference(
                 frames1, frames2, self.best_frames_so_far, self.env.unwrapped.step_dt
             )
             if label is not None:
                 cnt += 1
+                print()
                 labels.append([label])
                 sa1s.append(sa1)
                 sa2s.append(sa2)
@@ -413,11 +419,12 @@ class RewardModel:
             frames2 = self.env.unwrapped.obs_query_to_scene_input(
                 sa2[:, : self.ds], bs2
             )
-            label, best = my_utils.label_preference(
+            label, best = self.labler.label_preference(
                 frames1, frames2, self.best_frames_so_far, self.env.unwrapped.step_dt
             )
             if label is not None:
                 cnt += 1
+                print()
                 labels.append([label])
                 sa1s.append(sa1)
                 sa2s.append(sa2)
@@ -475,11 +482,12 @@ class RewardModel:
             frames2 = self.env.unwrapped.obs_query_to_scene_input(
                 sa2[:, : self.ds], bs2
             )
-            label, best = my_utils.label_preference(
+            label, best = self.labler.label_preference(
                 frames1, frames2, self.best_frames_so_far, self.env.unwrapped.step_dt
             )
             if label is not None:
                 cnt += 1
+                print()
                 labels.append([label])
                 sa1s.append(sa1)
                 sa2s.append(sa2)
@@ -509,6 +517,7 @@ class RewardModel:
 
         return len(labels)
 
+    # @profile
     def high_reward_and_disagreement_sampling(self):
         return self.high_reward_sampling(
             self.mb_size // 2

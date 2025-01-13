@@ -61,9 +61,9 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
         67.5000,  # left_upper_arm
         67.5000,  # left_upper_arm
         67.5000,  # pelvis
-        45.0000,  # right_lower_arm
-        45.0000,  # left_lower_arm
-        45.0000,  # right_thigh: x
+        25.0000,  # right_lower_arm
+        25.0000,  # left_lower_arm
+        25.0000,  # right_thigh: x
         135.0000,  # right_thigh: y
         45.0000,  # right_thigh: z
         45.0000,  # left_thigh: x

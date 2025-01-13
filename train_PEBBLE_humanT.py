@@ -137,6 +137,30 @@ class Workspace(BaseWorkspace):
                 self.done_np.reshape(-1, 1),
                 self.done_no_max_np.reshape(-1, 1),
             )
+            if self.cfg.mirror:
+                mirrored_obs = np.zeros_like(self.obs_np)
+                mirrored_next_obs = np.zeros_like(self.next_obs_np)
+                mirrored_action = np.zeros_like(self.action_np)
+
+                for i in range(self.num_envs):
+                    mirrored_obs[i] = self.env.unwrapped.get_mirrored_state(
+                        self.obs_np[i]
+                    )
+                    mirrored_next_obs[i] = self.env.unwrapped.get_mirrored_state(
+                        self.next_obs_np[i]
+                    )
+                    mirrored_action[i] = self.env.unwrapped.get_mirrored_action(
+                        self.action_np[i]
+                    )
+                self.replay_buffer.add_combined_batch(
+                    mirrored_obs,
+                    mirrored_action,
+                    self.reward_np.reshape(-1, 1),
+                    self.reward_hat_np.reshape(-1, 1),
+                    mirrored_next_obs,
+                    self.done_np.reshape(-1, 1),
+                    self.done_no_max_np.reshape(-1, 1),
+                )
 
             self.reallocate_datas()
             self.model_episode_reward += self.reward_hat_np

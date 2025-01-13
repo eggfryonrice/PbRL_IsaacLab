@@ -15,11 +15,12 @@ seed: 19
 num_envs: 10
 
 # pretrained model path
-pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid_mirror"
-pretrained_model_step: 5000000
+pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid_finetuned"
+pretrained_model_step: 3800000
 
 # training
 num_train_steps: 1e7
+# replay_buffer_capacity: ${num_train_steps}
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1

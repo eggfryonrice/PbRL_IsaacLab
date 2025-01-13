@@ -99,16 +99,29 @@ class LocomotionEnv(CustomRLEnv):
         )
 
         k = 1.2
+        lower_arm_margin = 0.3
         # for lower arm and upper arm, target is -k when action is 0,
-        # same when action is -1 and 1. This is to make arm straight
+        # lowerlimit - lower_arm margin at  -1 and upperlimit at 1
+        # This is to make arm straight
         target_position[:, [7, 8]] = torch.where(
             action_position[:, [7, 8]] > 0,
             -k
-            + action_position[:, [7, 8]]
-            * (self._joint_pos_upperbound[:, [7, 8]] + k + margin),
+            + action_position[:, [7, 8]] * (self._joint_pos_upperbound[:, [7, 8]] + k),
             -k
             - action_position[:, [7, 8]]
-            * (self._joint_pos_lowerbound[:, [7, 8]] + k - margin),
+            * (self._joint_pos_lowerbound[:, [7, 8]] - lower_arm_margin + k),
+        )
+
+        # for upper arms, again to make straight
+        k = 0.3
+        upper_arm_margin = 0.5
+        target_position[:, [3, 5]] = torch.where(
+            action_position[:, [3, 5]] > 0,
+            -k
+            + action_position[:, [3, 5]] * (self._joint_pos_upperbound[:, [3, 5]] + k),
+            -k
+            - action_position[:, [3, 5]]
+            * (self._joint_pos_lowerbound[:, [3, 5]] - upper_arm_margin + k),
         )
 
         target_velocity = (
