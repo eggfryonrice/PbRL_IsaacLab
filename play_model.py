@@ -6,6 +6,21 @@ parser = argparse.ArgumentParser(description="isaac sim app related parser")
 parser.add_argument(
     "--video", action="store_true", default=False, help="Record videos during training."
 )
+parser.add_argument(
+    "--config_name",
+    type=str,
+    default="train_PEBBLE_scriptedT",
+    help="Hydra config name.",
+)
+parser.add_argument(
+    "--step",
+    type=int,
+    default=4500000,
+    help="model at which train step.",
+)
+parser.add_argument(
+    "--mirror", action="store_true", default=False, help="Enable mirroring."
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
 
@@ -29,7 +44,7 @@ from my_utils import MultiEnvWrapper
 
 
 class Workspace(object):
-    def __init__(self, cfg):
+    def __init__(self, cfg, mirror, step):
         self.work_dir = os.getcwd()
         print(f"workspace: {self.work_dir}")
 
@@ -49,7 +64,7 @@ class Workspace(object):
         )
         if env.unwrapped.viewport_camera_controller != None:
             env.unwrapped.viewport_camera_controller.update_view_location(
-                [15, 0, 2],
+                [8, 0, 2],
                 [2, 0, 1],
                 # [2, -6, 2],
                 # [2, 0, 1],
@@ -73,9 +88,9 @@ class Workspace(object):
         ]
         self.agent = hydra.utils.instantiate(cfg.agent)
         # self.agent.load(self.work_dir, int(self.cfg.num_train_steps))
-        self.agent.load(self.work_dir, 3800000)
+        self.agent.load(self.work_dir, step)
 
-        self.mirror = False
+        self.mirror = mirror
 
     def run(self):
         episode_done = np.zeros(self.num_envs)
@@ -106,7 +121,7 @@ class Workspace(object):
                 )
 
             # action = torch.zeros_like(action)
-            # action[0][5] = -1
+            # action[0][20] = 1
 
             step_result = self.env.step(action)
 
@@ -121,10 +136,10 @@ class Workspace(object):
             steps += self.num_envs
 
 
-@hydra.main(config_path="config", config_name="finetune_PEBBLE", version_base="1.1")
+@hydra.main(config_path="config", config_name=args_cli.config_name, version_base="1.1")
 def main(cfg):
 
-    workspace = Workspace(cfg)
+    workspace = Workspace(cfg, args_cli.mirror, args_cli.step)
     workspace.run()
 
 

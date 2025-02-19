@@ -598,16 +598,15 @@ class RewardModel:
 
         return len(labels)
 
-    def disagreement_sampling(self):
+    def disagreement_sampling(self, size=0):
+        size = size if size else self.mb_size
 
         # get queries
-        sa_t_1, sa_t_2, r_t_1, r_t_2 = self.get_queries(
-            mb_size=self.mb_size * self.large_batch
-        )
+        sa_t_1, sa_t_2, r_t_1, r_t_2 = self.get_queries(mb_size=size * self.large_batch)
 
         # get final queries based on uncertainty
         _, disagree = self.get_rank_probability(sa_t_1, sa_t_2)
-        top_k_index = (-disagree).argsort()[: self.mb_size]
+        top_k_index = (-disagree).argsort()[:size]
         r_t_1, sa_t_1 = r_t_1[top_k_index], sa_t_1[top_k_index]
         r_t_2, sa_t_2 = r_t_2[top_k_index], sa_t_2[top_k_index]
 
@@ -644,18 +643,17 @@ class RewardModel:
 
         return len(labels)
 
-    def high_reward_sampling(self):
+    def high_reward_sampling(self, size):
+        size = size if size else self.mb_size
 
         # get queries
-        sa_t_1, sa_t_2, r_t_1, r_t_2 = self.get_queries(
-            mb_size=self.mb_size * self.large_batch
-        )
+        sa_t_1, sa_t_2, r_t_1, r_t_2 = self.get_queries(mb_size=size * self.large_batch)
 
         r1 = np.array([self.r_hat_batch(sa) for sa in sa_t_1]).sum(axis=1).squeeze()
         r2 = np.array([self.r_hat_batch(sa) for sa in sa_t_2]).sum(axis=1).squeeze()
 
-        top_k_index1 = (-r1).argsort()[: self.mb_size]
-        top_k_index2 = (-r2).argsort()[: self.mb_size]
+        top_k_index1 = (-r1).argsort()[:size]
+        top_k_index2 = (-r2).argsort()[:size]
         r_t_1, sa_t_1 = r_t_1[top_k_index1], sa_t_1[top_k_index1]
         r_t_2, sa_t_2 = r_t_2[top_k_index2], sa_t_2[top_k_index2]
 
@@ -668,6 +666,11 @@ class RewardModel:
             self.put_queries(sa_t_1, sa_t_2, labels)
 
         return len(labels)
+
+    def high_reward_and_disagreement_sampling(self):
+        return self.high_reward_sampling(
+            self.mb_size // 2
+        ) + self.disagreement_sampling((self.mb_size + 1) // 2)
 
     def train_reward(self):
         ensemble_losses = [[] for _ in range(self.de)]

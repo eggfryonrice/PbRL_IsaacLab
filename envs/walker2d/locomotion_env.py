@@ -82,7 +82,7 @@ class LocomotionEnv(CustomRLEnv):
             self.robot.data.joint_vel,
         )
 
-        self.body_state = self.robot.data.body_state_w
+        self.body_state = self.robot.data.body_state_w[:, self._body_dof_idx]
 
         self.orientation_xx, self.orientation_xz = compute_intermediate_values(
             self.body_rotation[:, self._body_dof_idx]

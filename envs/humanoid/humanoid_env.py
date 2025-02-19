@@ -25,7 +25,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
     # env
     episode_length_s = 15.0
     decimation = 2
-    action_space = 42
+    action_space = 21
     observation_space = 57
     state_space = 0
 
@@ -61,9 +61,9 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
         67.5000,  # left_upper_arm
         67.5000,  # left_upper_arm
         67.5000,  # pelvis
-        25.0000,  # right_lower_arm
-        25.0000,  # left_lower_arm
-        25.0000,  # right_thigh: x
+        45.0000,  # right_lower_arm
+        45.0000,  # left_lower_arm
+        45.0000,  # right_thigh: x
         135.0000,  # right_thigh: y
         45.0000,  # right_thigh: z
         45.0000,  # left_thigh: x
@@ -116,42 +116,7 @@ class HumanoidEnvCfg(CustomRLEnvCfg):
 
     stand_height: float = 1.2
     move_speed: float = 1.0
-
-
-def quaternion_multiply(q1, q2):
-    """Multiplies two quaternions q1 and q2."""
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    return (
-        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-    )
-
-
-def quaternion_conjugate(q):
-    """Returns the conjugate of a quaternion q."""
-    w, x, y, z = q
-    return (w, -x, -y, -z)
-
-
-def translate_point(point, translation, quaternion):
-    """Translates a point using position and quaternion."""
-    # Convert point to a quaternion (w=0)
-    point_quat = (0, *point)
-
-    # Rotate the point using the quaternion
-    q_conj = quaternion_conjugate(quaternion)
-    rotated_point = quaternion_multiply(
-        quaternion_multiply(quaternion, point_quat), q_conj
-    )
-    # Extract the rotated point (x, y, z)
-    rotated_point = np.array(rotated_point[1:])  # Skip the w component
-
-    # Add the translation
-    translated_point = rotated_point + np.array(translation)
-    return translated_point
+    hand_height: float = 0.9
 
 
 class HumanoidEnv(LocomotionEnv):
@@ -220,29 +185,6 @@ class HumanoidEnv(LocomotionEnv):
             "left_foot",
         ]
 
-    def obs_query_to_scene_input(self, obs_query: np.ndarray, bs_query: np.ndarray):
-        frames = []
-
-        default_pos = bs_query[0, 0, :2]  # torso position at start
-        bs_query = bs_query.copy()
-        bs_query[:, :, :2] -= default_pos
-
-        for bs in bs_query:
-            capsules = []
-            for i in range(16):
-                pos = bs[i][:3]
-                quat = bs[i][3:7]
-
-                capsule_names = self.body_part_to_capsules_dict[self.body_part[i]]
-                for capsule_name in capsule_names:
-                    rad, start, end = self.default_ori_dict[capsule_name]
-                    start = translate_point(np.array(start), pos, quat)
-                    end = translate_point(np.array(end), pos, quat)
-                    capsules.append((start, end, rad, (1.0, 1.0, 0.5)))
-
-            frames.append((capsules, [], []))
-        return frames
-
     def get_mirrored_state(self, state):
         mirrored_state = state.copy()
         # dof_pos
@@ -282,7 +224,7 @@ class HumanoidEnv(LocomotionEnv):
     def get_mirrored_action(self, action):
         mirrored_action = action.copy()
 
-        # dof_pos
+        # joint force
         mirrored_action[[2, 3, 7, 9, 10, 11, 15, 17, 18]] = action[
             [4, 5, 8, 12, 13, 14, 16, 19, 20]
         ]
@@ -293,17 +235,5 @@ class HumanoidEnv(LocomotionEnv):
         mirrored_action[0] = -mirrored_action[0]  # lower waist x
         mirrored_action[6] = -mirrored_action[6]  # pelvis
         mirrored_action[[18, 20]] = -mirrored_action[[18, 20]]
-
-        # dof_vel
-        mirrored_action[[23, 24, 28, 30, 31, 32, 36, 38, 39]] = action[
-            [25, 26, 29, 33, 34, 35, 37, 40, 41]
-        ]
-        mirrored_action[[25, 26, 29, 33, 34, 35, 37, 40, 41]] = action[
-            [23, 24, 28, 30, 31, 32, 36, 38, 39]
-        ]
-
-        mirrored_action[21] = -mirrored_action[21]  # lower waist x
-        mirrored_action[27] = -mirrored_action[27]  # pelvis
-        mirrored_action[[39, 41]] = -mirrored_action[[39, 41]]
 
         return mirrored_action

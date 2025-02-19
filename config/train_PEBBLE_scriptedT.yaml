@@ -11,11 +11,11 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 1
+seed: 0
 num_envs: 10
 
 # training
-num_train_steps: 1e6
+num_train_steps: 5e6
 replay_buffer_capacity: ${num_train_steps}
 num_seed_steps: 10000
 num_gradient_update: 1
@@ -26,14 +26,14 @@ topK: 5
 reset_update: 100
 
 # reward learning
-max_feedback: 200
-reward_batch: 5
+max_feedback: 300
+reward_batch: 20
 segment: 40
 activation: tanh
-num_interact: 10000 # how often we label preferences
+num_interact: 20000 # how often we label preferences
 reward_lr: 0.0003
 reward_update: 50
-feed_type: 1
+feed_type: 3
 ensemble_size: 3
 large_batch: 10
 label_margin: 0.0
@@ -56,7 +56,7 @@ video_interval: 10000
 video_length: 1000
 
 save_model: true
-save_model_freq: 1000000
+save_model_freq: 200000
 
 # hydra configuration
 hydra:

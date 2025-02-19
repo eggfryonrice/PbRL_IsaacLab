@@ -11,12 +11,12 @@ experiment: PEBBLE
 agent_name: sac
 
 device: cuda
-seed: 19
+seed: 0
 num_envs: 10
 
 # pretrained model path
-pretrained_model_dir: "/home/sangheonlee/Desktop/PbRL_IsaacLab/tmp/pretrained_model/humanoid_finetuned"
-pretrained_model_step: 3800000
+pretrained_model_dir: "example/finetuned_model"
+pretrained_model_step: 4500000
 
 # training
 num_train_steps: 1e7
@@ -31,28 +31,22 @@ reward_beta: 0.5
 reward_gamma: 0.5
 
 # reward learning
-max_feedback: 800
-reward_batch: 5
-segment: 40
+max_feedback: 1000
+reward_batch: 10
+segment: 90
 activation: tanh
-num_interact: 50000 # how often we label preferences
+num_interact: 100000 # how often we label preferences
 reward_lr: 0.0003
-reward_update: 3
-feed_type: 3
+reward_update: 10
+feed_type: 2
 ensemble_size: 3
 large_batch: 20 # in disagreement sampling, we sample reward_batch query pairs from reward_batch * large_batch query pairs
-label_margin: 0.0
-teacher_beta: -1
-teacher_gamma: 1
-teacher_eps_mistake: 0
-teacher_eps_skip: 0
-teacher_eps_equal: 0.1
 
 reward_schedule: 0
 
 max_query_save: 1e6
 reward_model_capacity: 200
-mirror: false
+mirror: true
 
 load_reward_model: true 
 

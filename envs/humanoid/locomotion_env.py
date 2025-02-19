@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import torch
 
-import omni.isaac.core.utils.torch as torch_utils
-from omni.isaac.core.utils.torch.rotations import (
+import omni.isaac.core.utils.torch as torch_utils  # type: ignore
+from omni.isaac.core.utils.torch.rotations import (  # type: ignore
     compute_heading_and_up,
     compute_rot,
     quat_conjugate,
@@ -87,49 +87,7 @@ class LocomotionEnv(CustomRLEnv):
         self.actions = actions.clone()
 
     def _apply_action(self):
-        action_position = self.actions[:, : len(self._joint_dof_idx)]
-        margin = 0.0
-        # lower bound are all negative, upper bound are all positive, default is 0
-        # target is 0 when action is 0, target is lowerbound - margin when action is -1,
-        # upperbound + margin when action is 1 and between [-1,0], [0,1] is line
-        target_position = torch.where(
-            action_position > 0,
-            action_position * (self._joint_pos_upperbound + margin),
-            -action_position * (self._joint_pos_lowerbound - margin),
-        )
-
-        k = 1.2
-        lower_arm_margin = 0.3
-        # for lower arm and upper arm, target is -k when action is 0,
-        # lowerlimit - lower_arm margin at  -1 and upperlimit at 1
-        # This is to make arm straight
-        target_position[:, [7, 8]] = torch.where(
-            action_position[:, [7, 8]] > 0,
-            -k
-            + action_position[:, [7, 8]] * (self._joint_pos_upperbound[:, [7, 8]] + k),
-            -k
-            - action_position[:, [7, 8]]
-            * (self._joint_pos_lowerbound[:, [7, 8]] - lower_arm_margin + k),
-        )
-
-        # for upper arms, again to make straight
-        k = 0.3
-        upper_arm_margin = 0.5
-        target_position[:, [3, 5]] = torch.where(
-            action_position[:, [3, 5]] > 0,
-            -k
-            + action_position[:, [3, 5]] * (self._joint_pos_upperbound[:, [3, 5]] + k),
-            -k
-            - action_position[:, [3, 5]]
-            * (self._joint_pos_lowerbound[:, [3, 5]] - upper_arm_margin + k),
-        )
-
-        target_velocity = (
-            self.actions[:, len(self._joint_dof_idx) :] / self.cfg.dof_vel_scale
-        )
-        forces = self.joint_gears * self.cfg.PD_Kp * (
-            target_position - self.robot.data.joint_pos
-        ) + self.cfg.PD_Kd * (target_velocity - self.robot.data.joint_vel)
+        forces = self.joint_gears * self.actions
         self.robot.set_joint_effort_target(forces, joint_ids=self._joint_dof_idx)
 
     def _compute_intermediate_values(self):
@@ -148,6 +106,8 @@ class LocomotionEnv(CustomRLEnv):
 
         # z position of hand and foot
         self.acro_position_z = self.robot.data.body_pos_w[:, [10, 11, 14, 15], 2]
+        # rotation of foot
+        self.foot_rotation = self.robot.data.body_quat_w[:, [14, 15]]
 
         self.body_state = self.robot.data.body_state_w
         (
@@ -166,6 +126,8 @@ class LocomotionEnv(CustomRLEnv):
             self.potentials,
             self.torso_position_z_scaled,
             self.acro_position_z_scaled,
+            self.foot_xx,
+            self.foot_zz,
         ) = compute_intermediate_values(
             self.targets,
             self.torso_position,
@@ -184,6 +146,7 @@ class LocomotionEnv(CustomRLEnv):
             self.acro_position_z,
             self.cfg.termination_height,
             self.cfg.stand_height,
+            self.foot_rotation,
         )
 
     def _get_observations(self) -> dict:
@@ -212,6 +175,10 @@ class LocomotionEnv(CustomRLEnv):
             self.up_proj,
             self.velocity[:, 0],
             self.cfg.move_speed,
+            self.acro_position_z,
+            self.cfg.hand_height,
+            self.foot_xx,
+            self.foot_zz,
         )
         return total_reward
 
@@ -307,6 +274,10 @@ def compute_rewards(
     up_proj: torch.Tensor,
     torso_speed: torch.Tensor,
     move_speed: float,
+    acro_position_z: torch.Tensor,
+    hand_height: float,
+    foot_xx,
+    foot_zz,
 ):
     # stand reward
     standing = tolerance_gaussian(
@@ -319,7 +290,22 @@ def compute_rewards(
     move_reward = tolerance_linear(
         torso_speed, move_speed, float("inf"), move_speed / 2, 0.5
     )
-    return stand_reward * (5 * move_reward + 1) / 6
+
+    # hand
+    avg_hand_height = (acro_position_z[:, 0] + acro_position_z[:, 1]) / 2
+    hand_reward = tolerance_gaussian(
+        avg_hand_height, 0.0, hand_height, stand_height / 4, 0.1
+    )
+
+    foot_upright = (
+        4 + foot_xx[:, 0] + foot_xx[:, 1] + foot_zz[:, 0] + foot_zz[:, 1]
+    ) / 8
+
+    return (
+        (stand_reward * 0.5 + hand_reward * 0.1 + foot_upright * 0.4)
+        * (5 * move_reward + 1)
+        / 6
+    )
 
 
 @torch.jit.script
@@ -341,6 +327,7 @@ def compute_intermediate_values(
     acro_position_z,
     termination_height: float,
     stand_height: float,
+    foot_rotation: torch.Tensor,
 ):
     to_target = targets - torso_position
     to_target[:, 2] = 0.0
@@ -369,6 +356,15 @@ def compute_intermediate_values(
 
     acro_position_z_scaled = -1 + 2 * acro_position_z / stand_height
 
+    w, x, y, z = (
+        foot_rotation[..., 0],
+        foot_rotation[..., 1],
+        foot_rotation[..., 2],
+        foot_rotation[..., 3],
+    )
+    xx = 1 - 2 * (y**2 + z**2)
+    zz = 1 - 2 * (x**2 + y**2)
+
     return (
         up_proj,
         heading_proj,
@@ -385,4 +381,6 @@ def compute_intermediate_values(
         potentials,
         torso_position_z_scaled,
         acro_position_z_scaled,
+        xx,
+        zz,
     )
